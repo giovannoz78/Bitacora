@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InkBrush v4.3 — p5.js</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<script>
+// ──────────────────────────────────────────────
+//  InkBrush p5.js — Traducido desde Processing
+//  v4.3.1 → p5.js 1.9.0
+// ──────────────────────────────────────────────
+
+let layer, paper;
+let brush = 26, inkL = 0;
+let mode = 0, bgCol = 255;
+
+const BRISTLES = 24;
+const SPREAD   = 0.55;
+const ROUGH    = 0.18;
+const WET_EDGE = 0.22;
+const FLOW_BASE = 0.9;
+const FADE_TAIL = 0.9;
+const TAIL_MAX  = 16;
+let tail = [];
+
+let useColor = false;
+let R = 0, G = 0, Bc = 0, uiAlpha = 180;
+
+let strokePath = [];
+let drawingStroke = false;
+
+// Panel
+const PANEL_W  = 240;
+const PANEL_Y  = 10;
+const LABEL_H  = 14;
+const LABEL_TOP = 8;
+const SLIDER_H  = 18;
+const BLOCK_GAP = 18;
+let PANEL_X, PANEL_H;
+let showUI = true;
+
+// ─── Slider ───────────────────────────────────
+class Slider {
+  constructor(vmin, vmax, v) {
+    this.vmin = vmin; this.vmax = vmax; this.value = v;
+    this.drag = false;
+    this.bx = 0; this.by = 0; this.bw = 0; this.bh = 0;
+  }
+  draw(x, y, w) {
+    this.bx = x; this.by = y; this.bw = w; this.bh = SLIDER_H;
+    stroke(0, 40); fill(bgCol === 255 ? 245 : 25);
+    rect(x, y, w, SLIDER_H, 8);
+    let nx = map(this.value, this.vmin, this.vmax, x, x + w);
+    noStroke(); fill(bgCol === 255 ? 60 : 210);
+    rect(x, y, nx - x, SLIDER_H, 8);
+    stroke(bgCol === 255 ? 40 : 220); fill(bgCol === 255 ? 255 : 50);
+    let r = SLIDER_H * 1.15;
+    ellipse(nx, y + SLIDER_H / 2, r, r);
+  }
+  hit(mx, my) {
+    return mx >= this.bx && my >= this.by && mx <= this.bx + this.bw && my <= this.by + this.bh;
+  }
+  begin() { this.drag = true; }
+  end()   { this.drag = false; }
+  to(mx)  { this.value = map(constrain(mx, this.bx, this.bx + this.bw), this.bx, this.bx + this.bw, this.vmin, this.vmax); }
+}
+
+// ─── Toggle ───────────────────────────────────
+class Toggle {
+  constructor(c) {
+    this.checked = c;
+    this.bx = 0; this.by = 0; this.bw = 16; this.bh = 16;
+  }
+  draw(x, y, label) {
+    this.bx = x; this.by = y - (this.bh - 2);
+    stroke(bgCol === 255 ? 0 : 255); noFill();
+    rect(this.bx, this.by, this.bw, this.bh, 3);
+    if (this.checked) {
+      let cx = this.bx + this.bw / 2, cy = this.by + this.bh / 2;
+      line(cx - 5, cy - 5, cx + 5, cy + 5);
+      line(cx - 5, cy + 5, cx + 5, cy - 5);
+    }
+    noStroke(); fill(bgCol === 255 ? 0 : 255);
+    text(label, x + this.bw + 8, y + 2);
+  }
+  hit(mx, my) {
+    return mx >= this.bx && my >= this.by && mx <= this.bx + this.bw && my <= this.by + this.bh;
+  }
+  toggle() { this.checked = !this.checked; }
+}
+
+let sR, sG, sB, sSize, sAlpha, tColor;
+
+// ─── setup ────────────────────────────────────
+function setup() {
+  createCanvas(1280, 720);
+  frameRate(120);
+  PANEL_X = width - PANEL_W - 12;
+  PANEL_H = height - 20;
+
+  sR    = new Slider(0, 255, R);
+  sG    = new Slider(0, 255, G);
+  sB    = new Slider(0, 255, Bc);
+  sSize = new Slider(2, 420, brush);
+  sAlpha= new Slider(10, 255, uiAlpha);
+  tColor= new Toggle(useColor);
+
+  setScheme(0);
+  layer = createGraphics(width, height);
+  paper = createGraphics(width, height);
+  makePaper();
+  clearCanvas();
+}
+
+// ─── draw ─────────────────────────────────────
+function draw() {
+  let overPanel = showUI && mouseOverPanel();
+
+  if (mouseIsPressed && mouseButton === LEFT && !overPanel && !keyIsPressed) {
+    if (!drawingStroke) startStroke(mouseX, mouseY);
+    addPoint(mouseX, mouseY);
+    drawSmoothed();
+  } else if (mouseIsPressed && mouseButton === RIGHT && !overPanel) {
+    eraseStroke(pmouseX, pmouseY, mouseX, mouseY);
+    endStroke();
+  } else {
+    endStroke();
+    if (tail.length > 0) tail.shift();
+  }
+
+  background(bgCol);
+  image(paper, 0, 0);
+  image(layer, 0, 0);
+
+  // HUD
+  noStroke();
+  fill(bgCol === 0 ? color(0, 168) : color(255, 168));
+  rect(10, 10, 590, 70, 8);
+  fill(bgCol === 255 ? 0 : 255);
+  textSize(12); textFont('monospace');
+  text('InkBrush p5.js  |  [ESPACIO] UI  |  [B] esquema  |  [C] limpiar  |  [S] guardar  |  [I] cuentagotas', 20, 28);
+  text('Esquema: ' + (mode === 0 ? 'Papel blanco / Tinta negra' : 'Fondo negro / Tinta blanca'), 20, 44);
+  let colorTxt = useColor ? ('RGB: ' + int(R) + ',' + int(G) + ',' + int(Bc)) : ('Gris: ' + int(inkL));
+  text('Tamaño [' + nf(brush, 1, 1) + ']  |  ' + colorTxt + '  |  Opacidad: ' + int(uiAlpha), 20, 60);
+
+  if (showUI) drawPanel();
+}
+
+// ─── Panel UI ─────────────────────────────────
+function mouseOverPanel() {
+  return mouseX >= PANEL_X && mouseY >= PANEL_Y &&
+         mouseX <= PANEL_X + PANEL_W && mouseY <= PANEL_Y + PANEL_H;
+}
+
+function drawPanel() {
+  let ox = PANEL_X;
+  noStroke();
+  fill(bgCol === 255 ? color(255, 232) : color(20, 20, 20, 210));
+  rect(ox, PANEL_Y, PANEL_W, PANEL_H, 8);
+
+  textFont('monospace'); textSize(11);
+  fill(bgCol === 255 ? 0 : 255);
+  text('● COLOR / PINCEL', ox + 16, PANEL_Y + 18);
+
+  let x = ox + 16, y = PANEL_Y + 40, w = PANEL_W - 32;
+
+  // Toggle
+  tColor.draw(x, y, 'Usar color');
+  y += LABEL_H + 14;
+  useColor = tColor.checked;
+
+  // R
+  fill(bgCol === 255 ? 0 : 255); text('R  ' + int(sR.value), x, y);
+  y += LABEL_TOP; sR.draw(x, y, w); y += SLIDER_H + BLOCK_GAP;
+
+  // G
+  fill(bgCol === 255 ? 0 : 255); text('G  ' + int(sG.value), x, y);
+  y += LABEL_TOP; sG.draw(x, y, w); y += SLIDER_H + BLOCK_GAP;
+
+  // B
+  fill(bgCol === 255 ? 0 : 255); text('B  ' + int(sB.value), x, y);
+  y += LABEL_TOP; sB.draw(x, y, w); y += SLIDER_H + BLOCK_GAP;
+
+  // Tamaño
+  fill(bgCol === 255 ? 0 : 255); text('Tamaño  ' + int(sSize.value), x, y);
+  y += LABEL_TOP; sSize.draw(x, y, w); y += SLIDER_H + BLOCK_GAP;
+
+  // Opacidad
+  fill(bgCol === 255 ? 0 : 255); text('Opacidad  ' + int(sAlpha.value), x, y);
+  y += LABEL_TOP; sAlpha.draw(x, y, w); y += SLIDER_H + BLOCK_GAP;
+
+  // Separador
+  stroke(bgCol === 255 ? color(180) : color(60)); strokeWeight(1);
+  line(x, y, x + w, y); y += 14; noStroke();
+
+  // Ayuda teclas
+  textSize(10);
+  fill(bgCol === 255 ? color(100) : color(160));
+  text('[ ]  tamaño pincel', x, y); y += 16;
+  text(',  .  luminosidad', x, y); y += 16;
+  text('1 / 2  cambiar esquema', x, y); y += 16;
+  text('Scroll  tamaño | Shift+Scroll  tono', x, y);
+
+  // Sincronizar valores
+  R = sR.value; G = sG.value; Bc = sB.value;
+  brush = sSize.value; uiAlpha = sAlpha.value;
+}
+
+// ─── Eventos mouse ────────────────────────────
+function mousePressed() {
+  if (showUI && mouseOverPanel()) {
+    if (tColor.hit(mouseX, mouseY)) { tColor.toggle(); return false; }
+    if      (sR.hit(mouseX, mouseY))    { sR.begin();    sR.to(mouseX); }
+    else if (sG.hit(mouseX, mouseY))    { sG.begin();    sG.to(mouseX); }
+    else if (sB.hit(mouseX, mouseY))    { sB.begin();    sB.to(mouseX); }
+    else if (sSize.hit(mouseX, mouseY)) { sSize.begin(); sSize.to(mouseX); }
+    else if (sAlpha.hit(mouseX, mouseY)){ sAlpha.begin();sAlpha.to(mouseX); }
+    return false;
+  }
+}
+
+function mouseDragged() {
+  if (!showUI) return;
+  if (sR.drag)    sR.to(mouseX);
+  if (sG.drag)    sG.to(mouseX);
+  if (sB.drag)    sB.to(mouseX);
+  if (sSize.drag) sSize.to(mouseX);
+  if (sAlpha.drag)sAlpha.to(mouseX);
+}
+
+function mouseReleased() {
+  sR.end(); sG.end(); sB.end(); sSize.end(); sAlpha.end();
+}
+
+function mouseWheel(event) {
+  if (showUI && mouseOverPanel()) return;
+  // event.delta: positivo = scroll hacia abajo
+  let c = event.delta > 0 ? 1 : -1;
+  if (event.shiftKey) {
+    if (!useColor) {
+      inkL = constrain(inkL + c * 10, 0, 255);
+    } else {
+      R  = constrain(R  + c * 6, 0, 255);
+      G  = constrain(G  + c * 6, 0, 255);
+      Bc = constrain(Bc + c * 6, 0, 255);
+      sR.value = R; sG.value = G; sB.value = Bc;
+    }
+  } else {
+    brush = constrain(brush + c * 2.5, 2, 420);
+    sSize.value = brush;
+  }
+  return false;
+}
+
+// ─── Eventos teclado ──────────────────────────
+function keyPressed() {
+  if (key === ' ')              showUI = !showUI;
+  if (key === '[')              { brush = max(2, brush - 1.6);   sSize.value = brush; }
+  if (key === ']')              { brush = min(420, brush + 1.6); sSize.value = brush; }
+  if (!useColor) {
+    if (key === ',') inkL = max(0, inkL - 6);
+    if (key === '.') inkL = min(255, inkL + 6);
+  }
+  if (key === '1')              { setScheme(0); clearCanvas(); }
+  if (key === '2')              { setScheme(1); clearCanvas(); }
+  if (key === 'b' || key === 'B') { setScheme(1 - mode); clearCanvas(); }
+  if (key === 'c' || key === 'C') clearCanvas();
+  if (key === 's' || key === 'S') saveCanvas('ink-' + frameCount, 'png');
+  if (key === 'i' || key === 'I') eyedrop(mouseX, mouseY);
+  return false;
+}
+
+// ─── Pincel — gestión trazo ───────────────────
+function startStroke(x, y) {
+  drawingStroke = true;
+  strokePath = [];
+  strokePath.push(createVector(x, y));
+  strokePath.push(createVector(x, y));
+}
+
+function addPoint(x, y) {
+  strokePath.push(createVector(x, y));
+  if (strokePath.length > 64) strokePath.shift();
+}
+
+function endStroke() {
+  drawingStroke = false;
+  strokePath = [];
+}
+
+// ─── Catmull-Rom + pincel ─────────────────────
+function drawSmoothed() {
+  if (strokePath.length < 3) return;
+  for (let i = max(1, strokePath.length - 3); i < strokePath.length - 1; i++) {
+    let p0 = strokePath[i - 1];
+    let p1 = strokePath[i];
+    let p2 = strokePath[i + 1];
+    let p3 = (i + 2 < strokePath.length) ? strokePath[i + 2] : p2;
+    let segLen = p5.Vector.dist(p1, p2);
+    let steps  = max(10, int(segLen));
+    let prev   = p1.copy();
+    for (let s = 1; s <= steps; s++) {
+      let t   = s / steps;
+      let cur = catmull(p0, p1, p2, p3, t);
+      paintStroke(prev.x, prev.y, cur.x, cur.y);
+      prev = cur;
+    }
+  }
+}
+
+function catmull(p0, p1, p2, p3, t) {
+  let t2 = t * t, t3 = t2 * t;
+  let a0 = -0.5 * t3 + t2 - 0.5 * t;
+  let a1 =  1.5 * t3 - 2.5 * t2 + 1;
+  let a2 = -1.5 * t3 + 2   * t2 + 0.5 * t;
+  let a3 =  0.5 * t3 - 0.5 * t2;
+  return createVector(
+    a0*p0.x + a1*p1.x + a2*p2.x + a3*p3.x,
+    a0*p0.y + a1*p1.y + a2*p2.y + a3*p3.y
+  );
+}
+
+function paintStroke(x1, y1, x2, y2) {
+  let p1v = createVector(x1, y1);
+  let p2v = createVector(x2, y2);
+  let d   = max(0.001, p5.Vector.dist(p1v, p2v));
+  let steps = max(1, int(d / 0.9));
+
+  for (let i = 0; i < steps; i++) {
+    let t    = (i + 1) / steps;
+    let x    = lerp(x1, x2, t);
+    let y    = lerp(y1, y2, t);
+    let speed= min(40, d);
+    let flow = FLOW_BASE * map(speed, 0, 40, 1.0, 0.55);
+    let size = brush * map(speed, 0, 40, 1.0, 0.90);
+
+    tail.push(createVector(x, y));
+    while (tail.length > TAIL_MAX) tail.shift();
+    size *= pow(map(tail.length, 1, TAIL_MAX, 0.55, 1.0), FADE_TAIL);
+
+    let dir = p5.Vector.sub(p2v, p1v);
+    if (dir.mag() < 0.001) dir.set(1, 0);
+    dir.normalize();
+    let nrm = createVector(-dir.y, dir.x);
+
+    layer.beginDraw();
+    layer.noStroke();
+    layer.blendMode(useColor ? BLEND : (mode === 0 ? MULTIPLY : SCREEN));
+
+    for (let b = 0; b < BRISTLES; b++) {
+      let u       = b / (BRISTLES - 1) - 0.5;
+      let jitter  = (noise(x * 0.02 + b * 7.1, y * 0.02 - b * 3.3) - 0.5) * ROUGH * size * 2.0;
+      let offMag  = u * size * SPREAD + jitter;
+      let ox_     = nrm.x * offMag;
+      let oy_     = nrm.y * offMag;
+      let rad     = max(1, size * 0.12 + abs(u) * size * 0.06 + random(-0.5, 0.5));
+      let edge    = 1.0 - pow(1.0 - abs(u) * 2.0, 1.5);
+      let alpha   = int(constrain(uiAlpha * flow * (0.65 + random(-0.1, 0.1)), 10, 255));
+
+      let col;
+      if (useColor) {
+        let k = (mode === 0 ? -1 : 1) * edge * WET_EDGE * 0.18;
+        col = layer.color(
+          constrain(R  + k * 255, 0, 255),
+          constrain(G  + k * 255, 0, 255),
+          constrain(Bc + k * 255, 0, 255),
+          alpha
+        );
+      } else {
+        let lum = (mode === 0)
+          ? int(max(0, inkL - edge * WET_EDGE * 40))
+          : int(min(255, inkL + edge * WET_EDGE * 40));
+        col = layer.color(lum, alpha);
+      }
+      layer.fill(col);
+      layer.ellipse(
+        x + ox_ + randomGaussian() * size * 0.03,
+        y + oy_ + randomGaussian() * size * 0.03,
+        rad, rad
+      );
+    }
+    layer.blendMode(BLEND);
+    layer.endDraw();
+
+    // Fibra de borde (cada 3 frames)
+    if (frameCount % 3 === 0) {
+      layer.beginDraw();
+      layer.noFill();
+      let edgeStroke;
+      if (useColor) {
+        edgeStroke = layer.color(R, G, Bc, max(6, uiAlpha * 0.09));
+      } else {
+        edgeStroke = (mode === 0)
+          ? layer.color(max(0, int(inkL) - 10), max(6, uiAlpha * 0.09))
+          : layer.color(min(255, int(inkL) + 10), max(6, uiAlpha * 0.09));
+      }
+      layer.stroke(edgeStroke);
+      layer.strokeWeight(max(1, size * 0.04));
+      layer.line(
+        x - nrm.x * size * 0.25, y - nrm.y * size * 0.25,
+        x + nrm.x * size * 0.25, y + nrm.y * size * 0.25
+      );
+      layer.endDraw();
+    }
+  }
+}
+
+function eraseStroke(x1, y1, x2, y2) {
+  let d     = max(1, dist(x1, y1, x2, y2));
+  let steps = max(1, int(d / 1.2));
+  layer.beginDraw();
+  layer.noStroke();
+  for (let i = 0; i < steps; i++) {
+    let t = (i + 1) / steps;
+    layer.fill(bgCol);
+    layer.ellipse(lerp(x1, x2, t), lerp(y1, y2, t), brush * 1.2, brush * 1.2);
+  }
+  layer.endDraw();
+  if (tail.length > 0) tail.shift();
+}
+
+// ─── Papel y utilidades ───────────────────────
+function makePaper() {
+  let bg = (bgCol === 255) ? 252 : 3;
+  paper.beginDraw();
+  paper.background(bg);
+  paper.loadPixels();
+  for (let y = 0; y < height; y += 2) {
+    for (let x = 0; x < width; x += 4) {
+      let n = noise(x * 0.008, y * 0.008);
+      let g = (bgCol === 255) ? int(255 - n * 8 - random(0, 2)) : int(n * 6 + random(0, 2));
+      // alpha 10 blending manual
+      let a  = 10 / 255;
+      let bv = int(a * g + (1 - a) * bg);
+      // llenar bloque 4×2
+      for (let dy = 0; dy < 2; dy++) {
+        for (let dx = 0; dx < 4; dx++) {
+          let py = y + dy, px = x + dx;
+          if (py < height && px < width) {
+            let idx = (py * width + px) * 4;
+            paper.pixels[idx]     = bv;
+            paper.pixels[idx + 1] = bv;
+            paper.pixels[idx + 2] = bv;
+            paper.pixels[idx + 3] = 255;
+          }
+        }
+      }
+    }
+  }
+  paper.updatePixels();
+  paper.endDraw();
+}
+
+function clearCanvas() {
+  layer.beginDraw();
+  layer.background(bgCol);
+  layer.endDraw();
+  makePaper();
+}
+
+function setScheme(m) {
+  mode = m;
+  if (m === 0) { bgCol = 255; inkL = 0; }
+  else         { bgCol = 0;   inkL = 255; }
+}
+
+function eyedrop(mx, my) {
+  if (mx < 0 || my < 0 || mx >= width || my >= height) return;
+  layer.loadPixels();
+  let idx = (constrain(int(my), 0, height - 1) * width + constrain(int(mx), 0, width - 1)) * 4;
+  let a   = layer.pixels[idx + 3];
+  let r_, g_, b_;
+  if (a < 5) {
+    paper.loadPixels();
+    r_ = paper.pixels[idx];
+    g_ = paper.pixels[idx + 1];
+    b_ = paper.pixels[idx + 2];
+  } else {
+    r_ = layer.pixels[idx];
+    g_ = layer.pixels[idx + 1];
+    b_ = layer.pixels[idx + 2];
+  }
+  R = r_; G = g_; Bc = b_;
+  useColor = true; tColor.checked = true;
+  sR.value = R; sG.value = G; sB.value = Bc;
+}
+</script>
+</body>
+</html>
