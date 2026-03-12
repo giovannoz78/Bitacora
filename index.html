@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Bitácora</title>
+<title>Bitácora · </title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -123,6 +123,19 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
     <p style="font-size:8px;color:#8a7a5a;line-height:1.6">Clic en el lienzo para colocar texto</p>
   </div>
 
+  <div class="sec" id="ipanel" style="display:none">
+    <div class="lbl">Imagen</div>
+    <div class="sr">
+      <div class="sh"><span class="sn">Transparencia</span><span class="sv" id="v-ia">100</span></div>
+      <input type="range" id="sl-ia" min="0" max="100" value="100" oninput="setImgOp(+this.value)">
+    </div>
+    <div class="sr">
+      <div class="sh"><span class="sn">Escala</span><span class="sv" id="v-isc">100</span></div>
+      <input type="range" id="sl-isc" min="10" max="300" value="100" oninput="setImgScale(+this.value)">
+    </div>
+    <button class="ab d" onclick="removeSelImg()">&#10005; Eliminar imagen</button>
+  </div>
+
   <div class="sec">
     <div class="lbl">Acciones</div>
     <button class="ab" onclick="doUndo()">&#8617; Deshacer</button>
@@ -157,6 +170,7 @@ var pts=[];
 var hist=[];
 var imgs=[];
 var dragI=null;
+var selI=null;
 
 var COLS=['#1a1108','#2c1810','#0a0a14','#1a3a1a',
           '#8b0000','#1a3a5c','#2d4a1e','#3d1a4a',
@@ -293,11 +307,14 @@ function startAt(p){
   for(var i=imgs.length-1;i>=0;i--){
     var o=imgs[i];
     if(p.x>=o.x&&p.x<=o.x+o.w&&p.y>=o.y&&p.y<=o.y+o.h){
-      dragI=i;o.ox=p.x-o.x;o.oy=p.y-o.y;return;
+      dragI=i; selI=i; o.ox=p.x-o.x; o.oy=p.y-o.y;
+      showImgPanel();
+      return;
     }
   }
   if(tool==='brush'||tool==='erase'){
     push();
+    selI=null; hideImgPanel();
     painting=true;
     pts=[{x:p.x,y:p.y},{x:p.x,y:p.y},{x:p.x,y:p.y}];
     if(tool==='brush')stroke(p.x,p.y,p.x+.1,p.y+.1);
@@ -309,9 +326,7 @@ function moveAt(p){
   if(dragI!==null){
     var o=imgs[dragI];
     o.x=p.x-o.ox; o.y=p.y-o.oy;
-    if(hist.length)ctx.putImageData(hist[hist.length-1],0,0);
-    else paintBg();
-    imgs.forEach(function(im){ctx.drawImage(im.img,im.x,im.y,im.w,im.h);});
+    redraw();
     return;
   }
   if(!painting)return;
@@ -397,15 +412,85 @@ function loadImg(ev){
       var ratio=im.height/im.width;
       var ix=cvs.width/2-mw/2;
       var iy=cvs.height/2-mw*ratio/2;
-      imgs.push({img:im,x:ix,y:iy,w:mw,h:mw*ratio,ox:0,oy:0});
-      ctx.drawImage(im,ix,iy,mw,mw*ratio);
-      stat('Imagen cargada — arrastrala para posicionarla');
-      ST('brush');
+      var obj={img:im,x:ix,y:iy,w:mw,h:mw*ratio,bw:mw,bh:mw*ratio,op:1,sc:100,ox:0,oy:0};
+      imgs.push(obj);
+      selI=imgs.length-1;
+      redraw();
+      showImgPanel();
+      stat('Imagen cargada — arrastrala · ajusta transparencia');
       ev.target.value='';
     };
     im.src=re.target.result;
   };
   reader.readAsDataURL(f);
+}
+
+// Redraw completo: fondo + imágenes con opacidad
+function redraw(){
+  if(hist.length) ctx.putImageData(hist[hist.length-1],0,0);
+  else paintBg();
+  imgs.forEach(function(o){
+    ctx.save();
+    ctx.globalAlpha=o.op;
+    ctx.drawImage(o.img,o.x,o.y,o.w,o.h);
+    ctx.restore();
+  });
+  // indicador de selección
+  if(selI!==null&&imgs[selI]){
+    var o=imgs[selI];
+    ctx.save();
+    ctx.strokeStyle='rgba(200,169,110,0.7)';
+    ctx.lineWidth=1.5;
+    ctx.setLineDash([5,4]);
+    ctx.strokeRect(o.x-1,o.y-1,o.w+2,o.h+2);
+    ctx.restore();
+  }
+}
+
+function showImgPanel(){
+  var ip=document.getElementById('ipanel');
+  ip.style.display='block';
+  if(selI!==null&&imgs[selI]){
+    var op=Math.round(imgs[selI].op*100);
+    document.getElementById('sl-ia').value=op;
+    document.getElementById('v-ia').textContent=op;
+    var sc=imgs[selI].sc||100;
+    document.getElementById('sl-isc').value=sc;
+    document.getElementById('v-isc').textContent=sc;
+  }
+}
+
+function hideImgPanel(){
+  document.getElementById('ipanel').style.display='none';
+}
+
+function setImgOp(val){
+  document.getElementById('v-ia').textContent=val;
+  if(selI===null||!imgs[selI])return;
+  imgs[selI].op=val/100;
+  redraw();
+}
+
+function setImgScale(val){
+  document.getElementById('v-isc').textContent=val;
+  if(selI===null||!imgs[selI])return;
+  var o=imgs[selI];
+  var f=val/100;
+  var cx=o.x+o.w/2; var cy=o.y+o.h/2;
+  o.w=o.bw*f; o.h=o.bh*f;
+  o.x=cx-o.w/2; o.y=cy-o.h/2;
+  o.sc=val;
+  redraw();
+}
+
+function removeSelImg(){
+  if(selI===null||!imgs[selI])return;
+  push();
+  imgs.splice(selI,1);
+  selI=null; dragI=null;
+  hideImgPanel();
+  redraw();
+  stat('Imagen eliminada');
 }
 
 // UI helpers
@@ -452,7 +537,7 @@ function SC(h){
 
 function doClear(){
   if(!confirm('Limpiar el lienzo?'))return;
-  push();imgs=[];paintBg();stat('Lienzo limpio');
+  push();imgs=[];selI=null;dragI=null;hideImgPanel();paintBg();stat('Lienzo limpio');
 }
 
 function doSave(){
