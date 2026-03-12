@@ -2,29 +2,29 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Bitácora · Tinta China</title>
+<title>Bitácora</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{display:flex;height:100vh;overflow:hidden;background:#111;font-family:'JetBrains Mono',monospace;font-size:11px;color:#e8dcc8}
-#panel{width:220px;min-width:220px;height:100vh;background:#0d0b08;border-right:1px solid #2a2218;overflow-y:auto;display:flex;flex-direction:column}
-.ph{padding:16px 14px 10px;border-bottom:1px solid #1e1a12}
+#panel{width:220px;min-width:220px;height:100vh;background:#2a2318;border-right:1px solid #3a3020;overflow-y:auto;display:flex;flex-direction:column}
+.ph{padding:16px 14px 10px;border-bottom:1px solid #3a3020}
 .ph h1{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:300;color:#c8a96e;letter-spacing:.08em}
-.ph small{font-size:8px;color:#4a3a2a;letter-spacing:.2em;text-transform:uppercase}
-.sec{padding:10px 14px;border-bottom:1px solid #1a1610}
-.lbl{font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#4a3a2a;margin-bottom:8px}
+.ph small{font-size:8px;color:#7a6a52;letter-spacing:.2em;text-transform:uppercase}
+.sec{padding:10px 14px;border-bottom:1px solid #2e2618}
+.lbl{font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#9a8a6a;margin-bottom:8px}
 /* tools */
 .tg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
-.tb{padding:8px 4px;border:1px solid #2a2218;background:transparent;border-radius:4px;cursor:pointer;color:#5a4a32;font-size:13px;transition:all .12s;font-family:'JetBrains Mono',monospace}
-.tb:hover,.tb.on{border-color:#c8a96e;color:#c8a96e;background:rgba(200,169,110,.08)}
+.tb{padding:8px 4px;border:1px solid #3a3020;background:rgba(255,255,255,0.04);border-radius:4px;cursor:pointer;color:#9a8a6a;font-size:13px;transition:all .12s;font-family:'JetBrains Mono',monospace}
+.tb:hover,.tb.on{border-color:#c8a96e;color:#c8a96e;background:rgba(200,169,110,.12)}
 /* bg */
 .bgt{display:flex;gap:4px}
-.bgb{flex:1;padding:6px;border:1px solid #2a2218;background:transparent;border-radius:4px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:#5a4a32;transition:all .12s}
+.bgb{flex:1;padding:6px;border:1px solid #3a3020;background:rgba(255,255,255,0.03);border-radius:4px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:#9a8a6a;transition:all .12s}
 .bgb.w{background:#f0ebe0;color:#1a1108;border-color:#c8b89a}
 .bgb.k{background:#0a0a0a;color:#e8dcc8;border-color:#444}
 /* color */
 .crow{display:flex;align-items:center;gap:7px;margin-bottom:7px}
-.cpw{width:32px;height:32px;border-radius:4px;border:1px solid #2a2218;overflow:hidden;position:relative;flex-shrink:0;cursor:pointer}
+.cpw{width:32px;height:32px;border-radius:4px;border:1px solid #3a3020;overflow:hidden;position:relative;flex-shrink:0;cursor:pointer}
 .cpw input[type=color]{position:absolute;inset:-6px;width:calc(100%+12px);height:calc(100%+12px);opacity:0;cursor:pointer;border:none;padding:0}
 .swc{display:flex;flex-wrap:wrap;gap:4px;flex:1}
 .sw{width:16px;height:16px;border-radius:3px;cursor:pointer;border:1px solid transparent;transition:transform .1s;flex-shrink:0}
@@ -34,17 +34,17 @@ body{display:flex;height:100vh;overflow:hidden;background:#111;font-family:'JetB
 .sr{margin-bottom:10px}
 .sr:last-child{margin-bottom:0}
 .sh{display:flex;justify-content:space-between;margin-bottom:4px}
-.sn{font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#4a3a2a}
+.sn{font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#9a8a6a}
 .sv{font-size:9px;color:#c8a96e;min-width:24px;text-align:right}
-input[type=range]{-webkit-appearance:none;width:100%;height:2px;background:rgba(200,169,110,.15);border-radius:2px;outline:none;cursor:pointer;display:block}
+input[type=range]{-webkit-appearance:none;width:100%;height:2px;background:rgba(200,169,110,.25);border-radius:2px;outline:none;cursor:pointer;display:block}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;background:#c8a96e;cursor:pointer}
 /* text panel */
 .tr{display:flex;align-items:center;gap:6px;margin-bottom:6px}
-.tn{font-size:8px;color:#4a3a2a;letter-spacing:.1em;text-transform:uppercase}
-.ti{width:42px;padding:3px 5px;background:rgba(255,255,255,.04);border:1px solid #2a2218;border-radius:3px;color:#e8dcc8;font-family:'JetBrains Mono',monospace;font-size:9px;outline:none;text-align:center}
+.tn{font-size:8px;color:#9a8a6a;letter-spacing:.1em;text-transform:uppercase}
+.ti{width:42px;padding:3px 5px;background:rgba(255,255,255,.04);border:1px solid #3a3020;border-radius:3px;color:#e8dcc8;font-family:'JetBrains Mono',monospace;font-size:9px;outline:none;text-align:center}
 /* actions */
-.ab{width:100%;padding:7px;border-radius:4px;border:1px solid #2a2218;background:transparent;color:#5a4a32;font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:all .12s;margin-bottom:4px;display:block}
-.ab:hover{border-color:#c8a96e;color:#c8a96e}
+.ab{width:100%;padding:7px;border-radius:4px;border:1px solid #3a3020;background:rgba(255,255,255,0.03);color:#9a8a6a;font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:all .12s;margin-bottom:4px;display:block}
+.ab:hover{border-color:#c8a96e;color:#c8a96e;background:rgba(200,169,110,0.06)}
 .ab.d:hover{border-color:#c04a2a;color:#c04a2a}
 .ab:last-child{margin-bottom:0}
 #img-upload{display:none}
@@ -67,7 +67,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 </head>
 <body>
 <div id="panel">
-  <div class="ph"><h1>Bitácora</h1><small>Tinta China · Studio</small></div>
+  <div class="ph"><h1>Bitácora</h1><small>Activación del Cuerpo de Luz</small></div>
 
   <div class="sec">
     <div class="lbl">Herramientas</div>
@@ -120,7 +120,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
       <input class="ti" type="number" id="fs" value="24" min="8" max="200" oninput="fSz=+this.value">
       <span style="font-size:8px;color:#4a3a2a">px</span>
     </div>
-    <p style="font-size:8px;color:#4a3a2a;line-height:1.6">Clic en el lienzo para colocar texto</p>
+    <p style="font-size:8px;color:#8a7a5a;line-height:1.6">Clic en el lienzo para colocar texto</p>
   </div>
 
   <div class="sec">
