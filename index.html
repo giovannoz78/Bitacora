@@ -288,38 +288,27 @@ function pos(e){
 }
 
 // EVENTOS MOUSE — directos, sin captura, sin conflictos
-cvs.onmousedown=function(e){
-  if(e.button!==0)return;
-  var p=pos(e);
-
-  // texto
+function startAt(p){
   if(tool==='text'){openTov(p.x,p.y);return;}
-
-  // imagen drag
   for(var i=imgs.length-1;i>=0;i--){
     var o=imgs[i];
     if(p.x>=o.x&&p.x<=o.x+o.w&&p.y>=o.y&&p.y<=o.y+o.h){
       dragI=i;o.ox=p.x-o.x;o.oy=p.y-o.y;return;
     }
   }
-
-  // dibujo
   if(tool==='brush'||tool==='erase'){
     push();
     painting=true;
     pts=[{x:p.x,y:p.y},{x:p.x,y:p.y},{x:p.x,y:p.y}];
-    // punto inicial
     if(tool==='brush')stroke(p.x,p.y,p.x+.1,p.y+.1);
     else              erase(p.x,p.y,p.x+.1,p.y+.1);
   }
-};
+}
 
-cvs.onmousemove=function(e){
-  var p=pos(e);
+function moveAt(p){
   if(dragI!==null){
     var o=imgs[dragI];
     o.x=p.x-o.ox; o.y=p.y-o.oy;
-    // redraw
     if(hist.length)ctx.putImageData(hist[hist.length-1],0,0);
     else paintBg();
     imgs.forEach(function(im){ctx.drawImage(im.img,im.x,im.y,im.w,im.h);});
@@ -327,15 +316,22 @@ cvs.onmousemove=function(e){
   }
   if(!painting)return;
   addPt(p.x,p.y);
-};
+}
 
-cvs.onmouseup  =function(){painting=false;pts=[];dragI=null;};
-cvs.onmouseleave=function(){painting=false;pts=[];};
+function endAt(){painting=false;pts=[];dragI=null;}
 
-// Touch
-cvs.addEventListener('touchstart',function(e){e.preventDefault();cvs.onmousedown(e);},{passive:false});
-cvs.addEventListener('touchmove', function(e){e.preventDefault();cvs.onmousemove(e);},{passive:false});
-cvs.addEventListener('touchend',  function(e){e.preventDefault();cvs.onmouseup();},{passive:false});
+function posM(e){var r=cvs.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
+function posT(e){var r=cvs.getBoundingClientRect();var t=e.touches[0];return{x:t.clientX-r.left,y:t.clientY-r.top};}
+
+cvs.addEventListener('mousedown', function(e){if(e.button!==0)return;startAt(posM(e));});
+cvs.addEventListener('mousemove', function(e){moveAt(posM(e));});
+cvs.addEventListener('mouseup',   function(e){endAt();});
+cvs.addEventListener('mouseleave',function(e){endAt();});
+
+cvs.addEventListener('touchstart',function(e){e.preventDefault();startAt(posT(e));},{passive:false});
+cvs.addEventListener('touchmove', function(e){e.preventDefault();moveAt(posT(e));},{passive:false});
+cvs.addEventListener('touchend',  function(e){e.preventDefault();endAt();},{passive:false});
+cvs.addEventListener('touchcancel',function(e){e.preventDefault();endAt();},{passive:false});
 
 // Wheel
 cvs.addEventListener('wheel',function(e){
@@ -392,18 +388,24 @@ document.getElementById('ttxt').addEventListener('keydown',function(e){
 // Imagen
 function loadImg(ev){
   var f=ev.target.files[0];if(!f)return;
-  var url=URL.createObjectURL(f);
-  var im=new Image();
-  im.onload=function(){
-    var mw=Math.min(380,cvs.width*.5);
-    var ratio=im.height/im.width;
-    imgs.push({img:im,x:cvs.width/2-mw/2,y:cvs.height/2-mw*ratio/2,w:mw,h:mw*ratio,ox:0,oy:0});
-    ctx.drawImage(im,imgs[imgs.length-1].x,imgs[imgs.length-1].y,imgs[imgs.length-1].w,imgs[imgs.length-1].h);
-    stat('Imagen cargada');
-    ST('brush');
+  var reader=new FileReader();
+  reader.onload=function(re){
+    var im=new Image();
+    im.onload=function(){
+      push();
+      var mw=Math.min(500,cvs.width*0.6);
+      var ratio=im.height/im.width;
+      var ix=cvs.width/2-mw/2;
+      var iy=cvs.height/2-mw*ratio/2;
+      imgs.push({img:im,x:ix,y:iy,w:mw,h:mw*ratio,ox:0,oy:0});
+      ctx.drawImage(im,ix,iy,mw,mw*ratio);
+      stat('Imagen cargada — arrastrala para posicionarla');
+      ST('brush');
+      ev.target.value='';
+    };
+    im.src=re.target.result;
   };
-  im.src=url;
-  ev.target.value='';
+  reader.readAsDataURL(f);
 }
 
 // UI helpers
