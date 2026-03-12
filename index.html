@@ -1,496 +1,472 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>InkBrush v4.3 — p5.js</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; }
-    canvas { display: block; }
-  </style>
+<meta charset="UTF-8">
+<title>Bitácora · Tinta China</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{display:flex;height:100vh;overflow:hidden;background:#111;font-family:'JetBrains Mono',monospace;font-size:11px;color:#e8dcc8}
+#panel{width:220px;min-width:220px;height:100vh;background:#0d0b08;border-right:1px solid #2a2218;overflow-y:auto;display:flex;flex-direction:column}
+.ph{padding:16px 14px 10px;border-bottom:1px solid #1e1a12}
+.ph h1{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:300;color:#c8a96e;letter-spacing:.08em}
+.ph small{font-size:8px;color:#4a3a2a;letter-spacing:.2em;text-transform:uppercase}
+.sec{padding:10px 14px;border-bottom:1px solid #1a1610}
+.lbl{font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#4a3a2a;margin-bottom:8px}
+/* tools */
+.tg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.tb{padding:8px 4px;border:1px solid #2a2218;background:transparent;border-radius:4px;cursor:pointer;color:#5a4a32;font-size:13px;transition:all .12s;font-family:'JetBrains Mono',monospace}
+.tb:hover,.tb.on{border-color:#c8a96e;color:#c8a96e;background:rgba(200,169,110,.08)}
+/* bg */
+.bgt{display:flex;gap:4px}
+.bgb{flex:1;padding:6px;border:1px solid #2a2218;background:transparent;border-radius:4px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:#5a4a32;transition:all .12s}
+.bgb.w{background:#f0ebe0;color:#1a1108;border-color:#c8b89a}
+.bgb.k{background:#0a0a0a;color:#e8dcc8;border-color:#444}
+/* color */
+.crow{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.cpw{width:32px;height:32px;border-radius:4px;border:1px solid #2a2218;overflow:hidden;position:relative;flex-shrink:0;cursor:pointer}
+.cpw input[type=color]{position:absolute;inset:-6px;width:calc(100%+12px);height:calc(100%+12px);opacity:0;cursor:pointer;border:none;padding:0}
+.swc{display:flex;flex-wrap:wrap;gap:4px;flex:1}
+.sw{width:16px;height:16px;border-radius:3px;cursor:pointer;border:1px solid transparent;transition:transform .1s;flex-shrink:0}
+.sw:hover{transform:scale(1.25)}
+.sw.on{outline:2px solid white;outline-offset:1px}
+/* sliders */
+.sr{margin-bottom:10px}
+.sr:last-child{margin-bottom:0}
+.sh{display:flex;justify-content:space-between;margin-bottom:4px}
+.sn{font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#4a3a2a}
+.sv{font-size:9px;color:#c8a96e;min-width:24px;text-align:right}
+input[type=range]{-webkit-appearance:none;width:100%;height:2px;background:rgba(200,169,110,.15);border-radius:2px;outline:none;cursor:pointer;display:block}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;background:#c8a96e;cursor:pointer}
+/* text panel */
+.tr{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.tn{font-size:8px;color:#4a3a2a;letter-spacing:.1em;text-transform:uppercase}
+.ti{width:42px;padding:3px 5px;background:rgba(255,255,255,.04);border:1px solid #2a2218;border-radius:3px;color:#e8dcc8;font-family:'JetBrains Mono',monospace;font-size:9px;outline:none;text-align:center}
+/* actions */
+.ab{width:100%;padding:7px;border-radius:4px;border:1px solid #2a2218;background:transparent;color:#5a4a32;font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:all .12s;margin-bottom:4px;display:block}
+.ab:hover{border-color:#c8a96e;color:#c8a96e}
+.ab.d:hover{border-color:#c04a2a;color:#c04a2a}
+.ab:last-child{margin-bottom:0}
+#img-upload{display:none}
+/* canvas */
+#cw{flex:1;position:relative;overflow:hidden}
+#c{display:block}
+/* text overlay */
+#tov{display:none;position:absolute;background:#0d0b08;border:1px solid #c8a96e;border-radius:5px;padding:10px;z-index:10;min-width:160px}
+#tov textarea{background:transparent;border:none;outline:none;color:#e8dcc8;font-family:'Cormorant Garamond',serif;font-size:15px;resize:none;min-width:140px;min-height:36px;display:block;width:100%}
+.tvb{display:flex;gap:4px;margin-top:6px}
+.tvb button{flex:1;padding:4px;border-radius:3px;border:1px solid #2a2218;background:transparent;cursor:pointer;font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:#5a4a32;font-family:'JetBrains Mono',monospace;transition:all .12s}
+.tvb button:hover{background:rgba(200,169,110,.08)}
+.tvb button.ok{border-color:#c8a96e;color:#c8a96e}
+/* status */
+#st{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(13,11,8,.9);border:1px solid #2a2218;border-radius:20px;padding:3px 12px;font-size:8px;color:#5a4a32;letter-spacing:.15em;pointer-events:none;opacity:0;transition:opacity .25s;white-space:nowrap}
+#st.v{opacity:1}
+/* tip */
+#tip{position:absolute;top:10px;left:10px;background:rgba(13,11,8,.85);border:1px solid #2a2218;border-radius:4px;padding:6px 10px;font-size:8px;color:#4a3a2a;line-height:1.8;pointer-events:none}
+</style>
 </head>
 <body>
+<div id="panel">
+  <div class="ph"><h1>Bitácora</h1><small>Tinta China · Studio</small></div>
+
+  <div class="sec">
+    <div class="lbl">Herramientas</div>
+    <div class="tg">
+      <button class="tb on" id="t-brush" onclick="ST('brush')" title="B">&#9998;</button>
+      <button class="tb"    id="t-erase" onclick="ST('erase')" title="E">&#9633;</button>
+      <button class="tb"    id="t-text"  onclick="ST('text')"  title="T">T</button>
+      <button class="tb"    id="t-img"   onclick="document.getElementById('img-upload').click()">&#128444;</button>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="lbl">Fondo</div>
+    <div class="bgt">
+      <button class="bgb w" id="bg-w" onclick="SB('white')">Papel</button>
+      <button class="bgb"   id="bg-k" onclick="SB('black')">Negro</button>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="lbl">Color</div>
+    <div class="crow">
+      <div class="cpw" id="cpw">
+        <input type="color" id="cpick" value="#1a1108" oninput="SC(this.value)">
+      </div>
+      <div class="swc" id="swc"></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="lbl">Pincel</div>
+    <div class="sr">
+      <div class="sh"><span class="sn">Grosor</span><span class="sv" id="v-s">18</span></div>
+      <input type="range" id="sl-s" min="1" max="80" value="18" oninput="bSz=+this.value;document.getElementById('v-s').textContent=this.value">
+    </div>
+    <div class="sr">
+      <div class="sh"><span class="sn">Opacidad</span><span class="sv" id="v-o">80</span></div>
+      <input type="range" id="sl-o" min="5" max="100" value="80" oninput="bOp=+this.value;document.getElementById('v-o').textContent=this.value">
+    </div>
+    <div class="sr">
+      <div class="sh"><span class="sn">Dispersion</span><span class="sv" id="v-d">4</span></div>
+      <input type="range" id="sl-d" min="1" max="12" value="4" oninput="bSp=+this.value;document.getElementById('v-d').textContent=this.value">
+    </div>
+  </div>
+
+  <div class="sec" id="tpanel" style="display:none">
+    <div class="lbl">Texto</div>
+    <div class="tr">
+      <span class="tn">Tamano</span>
+      <input class="ti" type="number" id="fs" value="24" min="8" max="200" oninput="fSz=+this.value">
+      <span style="font-size:8px;color:#4a3a2a">px</span>
+    </div>
+    <p style="font-size:8px;color:#4a3a2a;line-height:1.6">Clic en el lienzo para colocar texto</p>
+  </div>
+
+  <div class="sec">
+    <div class="lbl">Acciones</div>
+    <button class="ab" onclick="doUndo()">&#8617; Deshacer</button>
+    <button class="ab" onclick="doSave()">&#8595; Guardar PNG</button>
+    <button class="ab d" onclick="doClear()">&#10005; Limpiar todo</button>
+  </div>
+
+  <input type="file" id="img-upload" accept="image/*" onchange="loadImg(event)">
+</div>
+
+<div id="cw">
+  <canvas id="c"></canvas>
+  <div id="tov">
+    <textarea id="ttxt" rows="2" placeholder="Escribir..."></textarea>
+    <div class="tvb">
+      <button onclick="document.getElementById('tov').style.display='none'">Cancelar</button>
+      <button class="ok" onclick="confirmText()">Colocar</button>
+    </div>
+  </div>
+  <div id="st"></div>
+  <div id="tip">B pincel &nbsp; E borrar &nbsp; T texto &nbsp; Z deshacer &nbsp; [ ] tamano &nbsp; rueda = tamano</div>
+</div>
+
 <script>
-// ──────────────────────────────────────────────
-//  InkBrush p5.js — Traducido desde Processing
-//  v4.3.1 → p5.js 1.9.0
-// ──────────────────────────────────────────────
+// Estado
+var bSz=18, bOp=80, bSp=4, fSz=24;
+var inkC='#1a1108', bgM='white';
+var tool='brush';
+var txX=0, txY=0;
+var painting=false;
+var pts=[];
+var hist=[];
+var imgs=[];
+var dragI=null;
 
-let layer, paper;
-let brush = 26, inkL = 0;
-let mode = 0, bgCol = 255;
+var COLS=['#1a1108','#2c1810','#0a0a14','#1a3a1a',
+          '#8b0000','#1a3a5c','#2d4a1e','#3d1a4a',
+          '#c8a96e','#e8dcc8','#a0522d','#555545',
+          '#ffffff','#888888','#c04a2a','#2a6a8a'];
 
-const BRISTLES = 24;
-const SPREAD   = 0.55;
-const ROUGH    = 0.18;
-const WET_EDGE = 0.22;
-const FLOW_BASE = 0.9;
-const FADE_TAIL = 0.9;
-const TAIL_MAX  = 16;
-let tail = [];
+// Canvas setup
+var cw=document.getElementById('cw');
+var cvs=document.getElementById('c');
+var ctx=cvs.getContext('2d');
 
-let useColor = false;
-let R = 0, G = 0, Bc = 0, uiAlpha = 180;
-
-let strokePath = [];
-let drawingStroke = false;
-
-// Panel
-const PANEL_W  = 240;
-const PANEL_Y  = 10;
-const LABEL_H  = 14;
-const LABEL_TOP = 8;
-const SLIDER_H  = 18;
-const BLOCK_GAP = 18;
-let PANEL_X, PANEL_H;
-let showUI = true;
-
-// ─── Slider ───────────────────────────────────
-class Slider {
-  constructor(vmin, vmax, v) {
-    this.vmin = vmin; this.vmax = vmax; this.value = v;
-    this.drag = false;
-    this.bx = 0; this.by = 0; this.bw = 0; this.bh = 0;
-  }
-  draw(x, y, w) {
-    this.bx = x; this.by = y; this.bw = w; this.bh = SLIDER_H;
-    stroke(0, 40); fill(bgCol === 255 ? 245 : 25);
-    rect(x, y, w, SLIDER_H, 8);
-    let nx = map(this.value, this.vmin, this.vmax, x, x + w);
-    noStroke(); fill(bgCol === 255 ? 60 : 210);
-    rect(x, y, nx - x, SLIDER_H, 8);
-    stroke(bgCol === 255 ? 40 : 220); fill(bgCol === 255 ? 255 : 50);
-    let r = SLIDER_H * 1.15;
-    ellipse(nx, y + SLIDER_H / 2, r, r);
-  }
-  hit(mx, my) {
-    return mx >= this.bx && my >= this.by && mx <= this.bx + this.bw && my <= this.by + this.bh;
-  }
-  begin() { this.drag = true; }
-  end()   { this.drag = false; }
-  to(mx)  { this.value = map(constrain(mx, this.bx, this.bx + this.bw), this.bx, this.bx + this.bw, this.vmin, this.vmax); }
+function initCanvas(){
+  cvs.width=cw.clientWidth;
+  cvs.height=cw.clientHeight;
+  paintBg();
+  stat('Listo — dibuja con el mouse');
 }
 
-// ─── Toggle ───────────────────────────────────
-class Toggle {
-  constructor(c) {
-    this.checked = c;
-    this.bx = 0; this.by = 0; this.bw = 16; this.bh = 16;
-  }
-  draw(x, y, label) {
-    this.bx = x; this.by = y - (this.bh - 2);
-    stroke(bgCol === 255 ? 0 : 255); noFill();
-    rect(this.bx, this.by, this.bw, this.bh, 3);
-    if (this.checked) {
-      let cx = this.bx + this.bw / 2, cy = this.by + this.bh / 2;
-      line(cx - 5, cy - 5, cx + 5, cy + 5);
-      line(cx - 5, cy + 5, cx + 5, cy - 5);
-    }
-    noStroke(); fill(bgCol === 255 ? 0 : 255);
-    text(label, x + this.bw + 8, y + 2);
-  }
-  hit(mx, my) {
-    return mx >= this.bx && my >= this.by && mx <= this.bx + this.bw && my <= this.by + this.bh;
-  }
-  toggle() { this.checked = !this.checked; }
+function paintBg(){
+  ctx.fillStyle=(bgM==='white')?'#f5f0e8':'#0a0805';
+  ctx.fillRect(0,0,cvs.width,cvs.height);
 }
 
-let sR, sG, sB, sSize, sAlpha, tColor;
+window.addEventListener('load', initCanvas);
+window.addEventListener('resize',function(){
+  var id=ctx.getImageData(0,0,cvs.width,cvs.height);
+  cvs.width=cw.clientWidth; cvs.height=cw.clientHeight;
+  paintBg(); ctx.putImageData(id,0,0);
+});
 
-// ─── setup ────────────────────────────────────
-function setup() {
-  createCanvas(1280, 720);
-  frameRate(120);
-  PANEL_X = width - PANEL_W - 12;
-  PANEL_H = height - 20;
+// Color utils
+function hr(h){return[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]}
+function pn(x,y){var n=Math.sin(x*127.1+y*311.7)*43758.5453;return n-Math.floor(n)}
 
-  sR    = new Slider(0, 255, R);
-  sG    = new Slider(0, 255, G);
-  sB    = new Slider(0, 255, Bc);
-  sSize = new Slider(2, 420, brush);
-  sAlpha= new Slider(10, 255, uiAlpha);
-  tColor= new Toggle(useColor);
-
-  setScheme(0);
-  layer = createGraphics(width, height);
-  paper = createGraphics(width, height);
-  makePaper();
-  clearCanvas();
+// Historial
+function push(){
+  if(hist.length>=16)hist.shift();
+  hist.push(ctx.getImageData(0,0,cvs.width,cvs.height));
+}
+function doUndo(){
+  if(!hist.length){stat('Nada para deshacer');return;}
+  ctx.putImageData(hist.pop(),0,0);
+  stat('Deshacer');
 }
 
-// ─── draw ─────────────────────────────────────
-function draw() {
-  let overPanel = showUI && mouseOverPanel();
+// Dibujo
+var NB=18;
+function stroke(x1,y1,x2,y2){
+  var rgb=hr(inkC), r=rgb[0],g=rgb[1],b=rgb[2];
+  var dx=x2-x1,dy=y2-y1;
+  var d=Math.sqrt(dx*dx+dy*dy)||0.01;
+  var steps=Math.max(1,Math.floor(d/0.9));
+  var nx=-dy/d, ny=dx/d;
+  var sz=bSz, al=bOp/100, sp=bSp*0.09;
 
-  if (mouseIsPressed && mouseButton === LEFT && !overPanel && !keyIsPressed) {
-    if (!drawingStroke) startStroke(mouseX, mouseY);
-    addPoint(mouseX, mouseY);
-    drawSmoothed();
-  } else if (mouseIsPressed && mouseButton === RIGHT && !overPanel) {
-    eraseStroke(pmouseX, pmouseY, mouseX, mouseY);
-    endStroke();
-  } else {
-    endStroke();
-    if (tail.length > 0) tail.shift();
-  }
-
-  background(bgCol);
-  image(paper, 0, 0);
-  image(layer, 0, 0);
-
-  // HUD
-  noStroke();
-  fill(bgCol === 0 ? color(0, 168) : color(255, 168));
-  rect(10, 10, 590, 70, 8);
-  fill(bgCol === 255 ? 0 : 255);
-  textSize(12); textFont('monospace');
-  text('InkBrush p5.js  |  [ESPACIO] UI  |  [B] esquema  |  [C] limpiar  |  [S] guardar  |  [I] cuentagotas', 20, 28);
-  text('Esquema: ' + (mode === 0 ? 'Papel blanco / Tinta negra' : 'Fondo negro / Tinta blanca'), 20, 44);
-  let colorTxt = useColor ? ('RGB: ' + int(R) + ',' + int(G) + ',' + int(Bc)) : ('Gris: ' + int(inkL));
-  text('Tamaño [' + nf(brush, 1, 1) + ']  |  ' + colorTxt + '  |  Opacidad: ' + int(uiAlpha), 20, 60);
-
-  if (showUI) drawPanel();
-}
-
-// ─── Panel UI ─────────────────────────────────
-function mouseOverPanel() {
-  return mouseX >= PANEL_X && mouseY >= PANEL_Y &&
-         mouseX <= PANEL_X + PANEL_W && mouseY <= PANEL_Y + PANEL_H;
-}
-
-function drawPanel() {
-  let ox = PANEL_X;
-  noStroke();
-  fill(bgCol === 255 ? color(255, 232) : color(20, 20, 20, 210));
-  rect(ox, PANEL_Y, PANEL_W, PANEL_H, 8);
-
-  textFont('monospace'); textSize(11);
-  fill(bgCol === 255 ? 0 : 255);
-  text('● COLOR / PINCEL', ox + 16, PANEL_Y + 18);
-
-  let x = ox + 16, y = PANEL_Y + 40, w = PANEL_W - 32;
-
-  // Toggle
-  tColor.draw(x, y, 'Usar color');
-  y += LABEL_H + 14;
-  useColor = tColor.checked;
-
-  // R
-  fill(bgCol === 255 ? 0 : 255); text('R  ' + int(sR.value), x, y);
-  y += LABEL_TOP; sR.draw(x, y, w); y += SLIDER_H + BLOCK_GAP;
-
-  // G
-  fill(bgCol === 255 ? 0 : 255); text('G  ' + int(sG.value), x, y);
-  y += LABEL_TOP; sG.draw(x, y, w); y += SLIDER_H + BLOCK_GAP;
-
-  // B
-  fill(bgCol === 255 ? 0 : 255); text('B  ' + int(sB.value), x, y);
-  y += LABEL_TOP; sB.draw(x, y, w); y += SLIDER_H + BLOCK_GAP;
-
-  // Tamaño
-  fill(bgCol === 255 ? 0 : 255); text('Tamaño  ' + int(sSize.value), x, y);
-  y += LABEL_TOP; sSize.draw(x, y, w); y += SLIDER_H + BLOCK_GAP;
-
-  // Opacidad
-  fill(bgCol === 255 ? 0 : 255); text('Opacidad  ' + int(sAlpha.value), x, y);
-  y += LABEL_TOP; sAlpha.draw(x, y, w); y += SLIDER_H + BLOCK_GAP;
-
-  // Separador
-  stroke(bgCol === 255 ? color(180) : color(60)); strokeWeight(1);
-  line(x, y, x + w, y); y += 14; noStroke();
-
-  // Ayuda teclas
-  textSize(10);
-  fill(bgCol === 255 ? color(100) : color(160));
-  text('[ ]  tamaño pincel', x, y); y += 16;
-  text(',  .  luminosidad', x, y); y += 16;
-  text('1 / 2  cambiar esquema', x, y); y += 16;
-  text('Scroll  tamaño | Shift+Scroll  tono', x, y);
-
-  // Sincronizar valores
-  R = sR.value; G = sG.value; Bc = sB.value;
-  brush = sSize.value; uiAlpha = sAlpha.value;
-}
-
-// ─── Eventos mouse ────────────────────────────
-function mousePressed() {
-  if (showUI && mouseOverPanel()) {
-    if (tColor.hit(mouseX, mouseY)) { tColor.toggle(); return false; }
-    if      (sR.hit(mouseX, mouseY))    { sR.begin();    sR.to(mouseX); }
-    else if (sG.hit(mouseX, mouseY))    { sG.begin();    sG.to(mouseX); }
-    else if (sB.hit(mouseX, mouseY))    { sB.begin();    sB.to(mouseX); }
-    else if (sSize.hit(mouseX, mouseY)) { sSize.begin(); sSize.to(mouseX); }
-    else if (sAlpha.hit(mouseX, mouseY)){ sAlpha.begin();sAlpha.to(mouseX); }
-    return false;
-  }
-}
-
-function mouseDragged() {
-  if (!showUI) return;
-  if (sR.drag)    sR.to(mouseX);
-  if (sG.drag)    sG.to(mouseX);
-  if (sB.drag)    sB.to(mouseX);
-  if (sSize.drag) sSize.to(mouseX);
-  if (sAlpha.drag)sAlpha.to(mouseX);
-}
-
-function mouseReleased() {
-  sR.end(); sG.end(); sB.end(); sSize.end(); sAlpha.end();
-}
-
-function mouseWheel(event) {
-  if (showUI && mouseOverPanel()) return;
-  // event.delta: positivo = scroll hacia abajo
-  let c = event.delta > 0 ? 1 : -1;
-  if (event.shiftKey) {
-    if (!useColor) {
-      inkL = constrain(inkL + c * 10, 0, 255);
-    } else {
-      R  = constrain(R  + c * 6, 0, 255);
-      G  = constrain(G  + c * 6, 0, 255);
-      Bc = constrain(Bc + c * 6, 0, 255);
-      sR.value = R; sG.value = G; sB.value = Bc;
-    }
-  } else {
-    brush = constrain(brush + c * 2.5, 2, 420);
-    sSize.value = brush;
-  }
-  return false;
-}
-
-// ─── Eventos teclado ──────────────────────────
-function keyPressed() {
-  if (key === ' ')              showUI = !showUI;
-  if (key === '[')              { brush = max(2, brush - 1.6);   sSize.value = brush; }
-  if (key === ']')              { brush = min(420, brush + 1.6); sSize.value = brush; }
-  if (!useColor) {
-    if (key === ',') inkL = max(0, inkL - 6);
-    if (key === '.') inkL = min(255, inkL + 6);
-  }
-  if (key === '1')              { setScheme(0); clearCanvas(); }
-  if (key === '2')              { setScheme(1); clearCanvas(); }
-  if (key === 'b' || key === 'B') { setScheme(1 - mode); clearCanvas(); }
-  if (key === 'c' || key === 'C') clearCanvas();
-  if (key === 's' || key === 'S') saveCanvas('ink-' + frameCount, 'png');
-  if (key === 'i' || key === 'I') eyedrop(mouseX, mouseY);
-  return false;
-}
-
-// ─── Pincel — gestión trazo ───────────────────
-function startStroke(x, y) {
-  drawingStroke = true;
-  strokePath = [];
-  strokePath.push(createVector(x, y));
-  strokePath.push(createVector(x, y));
-}
-
-function addPoint(x, y) {
-  strokePath.push(createVector(x, y));
-  if (strokePath.length > 64) strokePath.shift();
-}
-
-function endStroke() {
-  drawingStroke = false;
-  strokePath = [];
-}
-
-// ─── Catmull-Rom + pincel ─────────────────────
-function drawSmoothed() {
-  if (strokePath.length < 3) return;
-  for (let i = max(1, strokePath.length - 3); i < strokePath.length - 1; i++) {
-    let p0 = strokePath[i - 1];
-    let p1 = strokePath[i];
-    let p2 = strokePath[i + 1];
-    let p3 = (i + 2 < strokePath.length) ? strokePath[i + 2] : p2;
-    let segLen = p5.Vector.dist(p1, p2);
-    let steps  = max(10, int(segLen));
-    let prev   = p1.copy();
-    for (let s = 1; s <= steps; s++) {
-      let t   = s / steps;
-      let cur = catmull(p0, p1, p2, p3, t);
-      paintStroke(prev.x, prev.y, cur.x, cur.y);
-      prev = cur;
-    }
-  }
-}
-
-function catmull(p0, p1, p2, p3, t) {
-  let t2 = t * t, t3 = t2 * t;
-  let a0 = -0.5 * t3 + t2 - 0.5 * t;
-  let a1 =  1.5 * t3 - 2.5 * t2 + 1;
-  let a2 = -1.5 * t3 + 2   * t2 + 0.5 * t;
-  let a3 =  0.5 * t3 - 0.5 * t2;
-  return createVector(
-    a0*p0.x + a1*p1.x + a2*p2.x + a3*p3.x,
-    a0*p0.y + a1*p1.y + a2*p2.y + a3*p3.y
-  );
-}
-
-function paintStroke(x1, y1, x2, y2) {
-  let p1v = createVector(x1, y1);
-  let p2v = createVector(x2, y2);
-  let d   = max(0.001, p5.Vector.dist(p1v, p2v));
-  let steps = max(1, int(d / 0.9));
-
-  for (let i = 0; i < steps; i++) {
-    let t    = (i + 1) / steps;
-    let x    = lerp(x1, x2, t);
-    let y    = lerp(y1, y2, t);
-    let speed= min(40, d);
-    let flow = FLOW_BASE * map(speed, 0, 40, 1.0, 0.55);
-    let size = brush * map(speed, 0, 40, 1.0, 0.90);
-
-    tail.push(createVector(x, y));
-    while (tail.length > TAIL_MAX) tail.shift();
-    size *= pow(map(tail.length, 1, TAIL_MAX, 0.55, 1.0), FADE_TAIL);
-
-    let dir = p5.Vector.sub(p2v, p1v);
-    if (dir.mag() < 0.001) dir.set(1, 0);
-    dir.normalize();
-    let nrm = createVector(-dir.y, dir.x);
-
-    layer.beginDraw();
-    layer.noStroke();
-    layer.blendMode(useColor ? BLEND : (mode === 0 ? MULTIPLY : SCREEN));
-
-    for (let b = 0; b < BRISTLES; b++) {
-      let u       = b / (BRISTLES - 1) - 0.5;
-      let jitter  = (noise(x * 0.02 + b * 7.1, y * 0.02 - b * 3.3) - 0.5) * ROUGH * size * 2.0;
-      let offMag  = u * size * SPREAD + jitter;
-      let ox_     = nrm.x * offMag;
-      let oy_     = nrm.y * offMag;
-      let rad     = max(1, size * 0.12 + abs(u) * size * 0.06 + random(-0.5, 0.5));
-      let edge    = 1.0 - pow(1.0 - abs(u) * 2.0, 1.5);
-      let alpha   = int(constrain(uiAlpha * flow * (0.65 + random(-0.1, 0.1)), 10, 255));
-
-      let col;
-      if (useColor) {
-        let k = (mode === 0 ? -1 : 1) * edge * WET_EDGE * 0.18;
-        col = layer.color(
-          constrain(R  + k * 255, 0, 255),
-          constrain(G  + k * 255, 0, 255),
-          constrain(Bc + k * 255, 0, 255),
-          alpha
-        );
-      } else {
-        let lum = (mode === 0)
-          ? int(max(0, inkL - edge * WET_EDGE * 40))
-          : int(min(255, inkL + edge * WET_EDGE * 40));
-        col = layer.color(lum, alpha);
-      }
-      layer.fill(col);
-      layer.ellipse(
-        x + ox_ + randomGaussian() * size * 0.03,
-        y + oy_ + randomGaussian() * size * 0.03,
-        rad, rad
+  for(var i=0;i<steps;i++){
+    var t=(i+1)/steps;
+    var px=x1+dx*t, py=y1+dy*t;
+    var fl=0.88*(1-Math.min(40,d)/40*0.35);
+    var csz=sz*(1-Math.min(40,d)/40*0.1);
+    for(var k=0;k<NB;k++){
+      var u=k/(NB-1)-0.5;
+      var jt=(pn(px*0.03+k*6.7,py*0.03-k*3.1)-0.5)*0.18*csz;
+      var ox=nx*(u*csz*sp*8+jt);
+      var oy=ny*(u*csz*sp*8+jt);
+      var rad=Math.max(0.4,csz*0.13+Math.abs(u)*csz*0.05+(Math.random()-0.5));
+      var edge=1-Math.pow(1-Math.abs(u)*2,1.5);
+      var a=Math.min(1,al*fl*(0.5+Math.random()*0.35));
+      var w=(bgM==='white'?-1:1)*edge*9;
+      ctx.beginPath();
+      ctx.arc(
+        px+ox+(Math.random()-0.5)*csz*0.04,
+        py+oy+(Math.random()-0.5)*csz*0.04,
+        rad,0,Math.PI*2
       );
-    }
-    layer.blendMode(BLEND);
-    layer.endDraw();
-
-    // Fibra de borde (cada 3 frames)
-    if (frameCount % 3 === 0) {
-      layer.beginDraw();
-      layer.noFill();
-      let edgeStroke;
-      if (useColor) {
-        edgeStroke = layer.color(R, G, Bc, max(6, uiAlpha * 0.09));
-      } else {
-        edgeStroke = (mode === 0)
-          ? layer.color(max(0, int(inkL) - 10), max(6, uiAlpha * 0.09))
-          : layer.color(min(255, int(inkL) + 10), max(6, uiAlpha * 0.09));
-      }
-      layer.stroke(edgeStroke);
-      layer.strokeWeight(max(1, size * 0.04));
-      layer.line(
-        x - nrm.x * size * 0.25, y - nrm.y * size * 0.25,
-        x + nrm.x * size * 0.25, y + nrm.y * size * 0.25
-      );
-      layer.endDraw();
+      ctx.fillStyle='rgba('+
+        Math.max(0,Math.min(255,Math.round(r+w)))+','+
+        Math.max(0,Math.min(255,Math.round(g+w)))+','+
+        Math.max(0,Math.min(255,Math.round(b+w)))+','+
+        a.toFixed(3)+')';
+      ctx.fill();
     }
   }
 }
 
-function eraseStroke(x1, y1, x2, y2) {
-  let d     = max(1, dist(x1, y1, x2, y2));
-  let steps = max(1, int(d / 1.2));
-  layer.beginDraw();
-  layer.noStroke();
-  for (let i = 0; i < steps; i++) {
-    let t = (i + 1) / steps;
-    layer.fill(bgCol);
-    layer.ellipse(lerp(x1, x2, t), lerp(y1, y2, t), brush * 1.2, brush * 1.2);
+function erase(x1,y1,x2,y2){
+  var dx=x2-x1,dy=y2-y1;
+  var d=Math.max(1,Math.sqrt(dx*dx+dy*dy));
+  var steps=Math.max(1,Math.floor(d/1.2));
+  ctx.fillStyle=(bgM==='white')?'#f5f0e8':'#0a0805';
+  for(var i=0;i<steps;i++){
+    var t=(i+1)/steps;
+    ctx.beginPath();
+    ctx.arc(x1+dx*t,y1+dy*t,bSz*0.75,0,Math.PI*2);
+    ctx.fill();
   }
-  layer.endDraw();
-  if (tail.length > 0) tail.shift();
 }
 
-// ─── Papel y utilidades ───────────────────────
-function makePaper() {
-  let bg = (bgCol === 255) ? 252 : 3;
-  paper.beginDraw();
-  paper.background(bg);
-  paper.loadPixels();
-  for (let y = 0; y < height; y += 2) {
-    for (let x = 0; x < width; x += 4) {
-      let n = noise(x * 0.008, y * 0.008);
-      let g = (bgCol === 255) ? int(255 - n * 8 - random(0, 2)) : int(n * 6 + random(0, 2));
-      // alpha 10 blending manual
-      let a  = 10 / 255;
-      let bv = int(a * g + (1 - a) * bg);
-      // llenar bloque 4×2
-      for (let dy = 0; dy < 2; dy++) {
-        for (let dx = 0; dx < 4; dx++) {
-          let py = y + dy, px = x + dx;
-          if (py < height && px < width) {
-            let idx = (py * width + px) * 4;
-            paper.pixels[idx]     = bv;
-            paper.pixels[idx + 1] = bv;
-            paper.pixels[idx + 2] = bv;
-            paper.pixels[idx + 3] = 255;
-          }
-        }
-      }
+// Catmull-Rom
+function catmull(p0,p1,p2,p3,t){
+  var t2=t*t,t3=t2*t;
+  return{
+    x:.5*((2*p1.x)+(-p0.x+p2.x)*t+(2*p0.x-5*p1.x+4*p2.x-p3.x)*t2+(-p0.x+3*p1.x-3*p2.x+p3.x)*t3),
+    y:.5*((2*p1.y)+(-p0.y+p2.y)*t+(2*p0.y-5*p1.y+4*p2.y-p3.y)*t2+(-p0.y+3*p1.y-3*p2.y+p3.y)*t3)
+  };
+}
+
+function addPt(x,y){
+  pts.push({x:x,y:y});
+  if(pts.length<4)return;
+  var n=pts.length;
+  var p0=pts[n-4],p1=pts[n-3],p2=pts[n-2],p3=pts[n-1];
+  var seg=Math.sqrt((p2.x-p1.x)*(p2.x-p1.x)+(p2.y-p1.y)*(p2.y-p1.y));
+  var steps=Math.max(6,Math.floor(seg));
+  var prev={x:p1.x,y:p1.y};
+  for(var s=1;s<=steps;s++){
+    var cur=catmull(p0,p1,p2,p3,s/steps);
+    if(tool==='brush')stroke(prev.x,prev.y,cur.x,cur.y);
+    else              erase(prev.x,prev.y,cur.x,cur.y);
+    prev=cur;
+  }
+  if(pts.length>16)pts.splice(0,pts.length-6);
+}
+
+function pos(e){
+  var r=cvs.getBoundingClientRect();
+  var src=e.touches?e.touches[0]:e;
+  return{x:src.clientX-r.left,y:src.clientY-r.top};
+}
+
+// EVENTOS MOUSE — directos, sin captura, sin conflictos
+cvs.onmousedown=function(e){
+  if(e.button!==0)return;
+  var p=pos(e);
+
+  // texto
+  if(tool==='text'){openTov(p.x,p.y);return;}
+
+  // imagen drag
+  for(var i=imgs.length-1;i>=0;i--){
+    var o=imgs[i];
+    if(p.x>=o.x&&p.x<=o.x+o.w&&p.y>=o.y&&p.y<=o.y+o.h){
+      dragI=i;o.ox=p.x-o.x;o.oy=p.y-o.y;return;
     }
   }
-  paper.updatePixels();
-  paper.endDraw();
-}
 
-function clearCanvas() {
-  layer.beginDraw();
-  layer.background(bgCol);
-  layer.endDraw();
-  makePaper();
-}
-
-function setScheme(m) {
-  mode = m;
-  if (m === 0) { bgCol = 255; inkL = 0; }
-  else         { bgCol = 0;   inkL = 255; }
-}
-
-function eyedrop(mx, my) {
-  if (mx < 0 || my < 0 || mx >= width || my >= height) return;
-  layer.loadPixels();
-  let idx = (constrain(int(my), 0, height - 1) * width + constrain(int(mx), 0, width - 1)) * 4;
-  let a   = layer.pixels[idx + 3];
-  let r_, g_, b_;
-  if (a < 5) {
-    paper.loadPixels();
-    r_ = paper.pixels[idx];
-    g_ = paper.pixels[idx + 1];
-    b_ = paper.pixels[idx + 2];
-  } else {
-    r_ = layer.pixels[idx];
-    g_ = layer.pixels[idx + 1];
-    b_ = layer.pixels[idx + 2];
+  // dibujo
+  if(tool==='brush'||tool==='erase'){
+    push();
+    painting=true;
+    pts=[{x:p.x,y:p.y},{x:p.x,y:p.y},{x:p.x,y:p.y}];
+    // punto inicial
+    if(tool==='brush')stroke(p.x,p.y,p.x+.1,p.y+.1);
+    else              erase(p.x,p.y,p.x+.1,p.y+.1);
   }
-  R = r_; G = g_; Bc = b_;
-  useColor = true; tColor.checked = true;
-  sR.value = R; sG.value = G; sB.value = Bc;
+};
+
+cvs.onmousemove=function(e){
+  var p=pos(e);
+  if(dragI!==null){
+    var o=imgs[dragI];
+    o.x=p.x-o.ox; o.y=p.y-o.oy;
+    // redraw
+    if(hist.length)ctx.putImageData(hist[hist.length-1],0,0);
+    else paintBg();
+    imgs.forEach(function(im){ctx.drawImage(im.img,im.x,im.y,im.w,im.h);});
+    return;
+  }
+  if(!painting)return;
+  addPt(p.x,p.y);
+};
+
+cvs.onmouseup  =function(){painting=false;pts=[];dragI=null;};
+cvs.onmouseleave=function(){painting=false;pts=[];};
+
+// Touch
+cvs.addEventListener('touchstart',function(e){e.preventDefault();cvs.onmousedown(e);},{passive:false});
+cvs.addEventListener('touchmove', function(e){e.preventDefault();cvs.onmousemove(e);},{passive:false});
+cvs.addEventListener('touchend',  function(e){e.preventDefault();cvs.onmouseup();},{passive:false});
+
+// Wheel
+cvs.addEventListener('wheel',function(e){
+  e.preventDefault();
+  bSz=Math.max(1,Math.min(80,bSz-e.deltaY*.05));
+  document.getElementById('sl-s').value=bSz;
+  document.getElementById('v-s').textContent=Math.round(bSz);
+},{passive:false});
+
+// Teclado
+document.addEventListener('keydown',function(e){
+  if(document.activeElement.tagName==='INPUT'||document.activeElement.tagName==='TEXTAREA')return;
+  if(e.key==='z'||e.key==='Z')doUndo();
+  if(e.key==='b'||e.key==='B')ST('brush');
+  if(e.key==='e'||e.key==='E')ST('erase');
+  if(e.key==='t'||e.key==='T')ST('text');
+  if(e.key==='s'||e.key==='S')doSave();
+  if(e.key==='['){bSz=Math.max(1,bSz-2);document.getElementById('sl-s').value=bSz;document.getElementById('v-s').textContent=Math.round(bSz);}
+  if(e.key===']'){bSz=Math.min(80,bSz+2);document.getElementById('sl-s').value=bSz;document.getElementById('v-s').textContent=Math.round(bSz);}
+});
+
+// Texto
+function openTov(x,y){
+  txX=x;txY=y;
+  var ov=document.getElementById('tov');
+  ov.style.left=Math.min(x+8,cvs.width-190)+'px';
+  ov.style.top=Math.min(y-8,cvs.height-120)+'px';
+  ov.style.display='block';
+  document.getElementById('ttxt').value='';
+  setTimeout(function(){document.getElementById('ttxt').focus();},20);
+}
+
+function confirmText(){
+  var txt=document.getElementById('ttxt').value.trim();
+  if(txt){
+    push();
+    var rgb=hr(inkC);
+    ctx.save();
+    ctx.font=fSz+'px "Cormorant Garamond",serif';
+    ctx.fillStyle='rgba('+rgb[0]+','+rgb[1]+','+rgb[2]+','+(bOp/100)+')';
+    ctx.textBaseline='top';
+    ctx.fillText(txt,txX,txY);
+    ctx.restore();
+    stat('Texto colocado');
+  }
+  document.getElementById('tov').style.display='none';
+}
+
+document.getElementById('ttxt').addEventListener('keydown',function(e){
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();confirmText();}
+  if(e.key==='Escape')document.getElementById('tov').style.display='none';
+});
+
+// Imagen
+function loadImg(ev){
+  var f=ev.target.files[0];if(!f)return;
+  var url=URL.createObjectURL(f);
+  var im=new Image();
+  im.onload=function(){
+    var mw=Math.min(380,cvs.width*.5);
+    var ratio=im.height/im.width;
+    imgs.push({img:im,x:cvs.width/2-mw/2,y:cvs.height/2-mw*ratio/2,w:mw,h:mw*ratio,ox:0,oy:0});
+    ctx.drawImage(im,imgs[imgs.length-1].x,imgs[imgs.length-1].y,imgs[imgs.length-1].w,imgs[imgs.length-1].h);
+    stat('Imagen cargada');
+    ST('brush');
+  };
+  im.src=url;
+  ev.target.value='';
+}
+
+// UI helpers
+function ST(t){
+  tool=t;
+  ['brush','erase','text','img'].forEach(function(x){
+    var el=document.getElementById('t-'+x);
+    if(el)el.classList.toggle('on',x===t);
+  });
+  var cwEl=document.getElementById('cw');
+  cwEl.style.cursor=(t==='erase'?'cell':t==='text'?'text':'default');
+  cvs.style.cursor=(t==='erase'?'cell':t==='text'?'text':'crosshair');
+  document.getElementById('tpanel').style.display=(t==='text'?'block':'none');
+  var m={brush:'Pincel activo',erase:'Borrador activo',text:'Clic en el lienzo para colocar texto'};
+  if(m[t])stat(m[t]);
+}
+
+function SB(m){
+  bgM=m;
+  document.getElementById('bg-w').className='bgb'+(m==='white'?' w':'');
+  document.getElementById('bg-k').className='bgb'+(m==='black'?' k':'');
+  push(); paintBg();
+  stat(m==='white'?'Fondo papel':'Fondo negro');
+}
+
+function SC(h){
+  inkC=h;
+  document.getElementById('cpw').style.background=h;
+  document.getElementById('cpick').value=h;
+  document.querySelectorAll('.sw').forEach(function(s){s.classList.toggle('on',s.dataset.c===h);});
+}
+
+// Swatches
+(function(){
+  var c=document.getElementById('swc');
+  COLS.forEach(function(h){
+    var s=document.createElement('div');
+    s.className='sw';s.style.background=h;s.dataset.c=h;
+    s.onclick=function(){SC(h);};
+    c.appendChild(s);
+  });
+  document.getElementById('cpw').style.background=inkC;
+})();
+
+function doClear(){
+  if(!confirm('Limpiar el lienzo?'))return;
+  push();imgs=[];paintBg();stat('Lienzo limpio');
+}
+
+function doSave(){
+  var a=document.createElement('a');
+  a.download='bitacora.png';
+  a.href=cvs.toDataURL('image/png');
+  a.click();
+  stat('Guardado');
+}
+
+var _st;
+function stat(msg){
+  var s=document.getElementById('st');
+  s.textContent=msg;s.classList.add('v');
+  clearTimeout(_st);
+  _st=setTimeout(function(){s.classList.remove('v');},2000);
 }
 </script>
 </body>
