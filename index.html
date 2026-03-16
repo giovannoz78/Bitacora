@@ -209,6 +209,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
         <button class="ai-gen" id="hf-save" onclick="saveToken()" style="padding:4px 8px;white-space:nowrap">Guardar</button>
       </div>
     </div>
+    <div id="hf-token-active" style="display:none;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:8px;color:#5a7a4a;letter-spacing:.1em">&#10003; TOKEN ACTIVO</span>
+      <button onclick="clearToken()" style="font-size:7px;padding:2px 6px;border-radius:3px;border:1px solid #3a3020;background:transparent;color:#6a5a42;font-family:'JetBrains Mono',monospace;letter-spacing:.1em;cursor:pointer">Cambiar</button>
+    </div>
     <textarea class="ai-prompt" id="ai-prompt" rows="3" placeholder="Describe la imagen... ej: tinta china sobre papel, figura humana fragmentada, fondo oscuro"></textarea>
     <div class="ai-row">
       <select class="ai-sel" id="ai-size">
@@ -863,22 +867,28 @@ function toggleAI(){
   p.style.display=aiOpen?'block':'none';
   tb.classList.toggle('on',aiOpen);
   if(aiOpen){
-    // Cargar token guardado
     try{
       var saved=localStorage.getItem('hf_token');
-      if(saved){
-        HF_TOKEN=saved;
-        document.getElementById('hf-token').value=saved;
-        document.getElementById('hf-token-wrap').style.display='none';
-        document.getElementById('ai-hint').textContent='Token activo \u2713 · Stable Diffusion XL';
-      }
-    }catch(e){}
+      if(saved){ HF_TOKEN=saved; showTokenActive(); }
+      else { showTokenForm(); }
+    }catch(e){ showTokenForm(); }
     setTimeout(function(){
       var f=HF_TOKEN?document.getElementById('ai-prompt'):document.getElementById('hf-token');
       f.focus();
     },60);
     stat('Panel IA \u2014 describí la imagen y presioná Generar');
   }
+}
+
+function showTokenForm(){
+  document.getElementById('hf-token-wrap').style.display='block';
+  document.getElementById('hf-token-active').style.display='none';
+}
+
+function showTokenActive(){
+  document.getElementById('hf-token-wrap').style.display='none';
+  document.getElementById('hf-token-active').style.display='flex';
+  document.getElementById('ai-hint').textContent='Token activo \u2713 \u00B7 Stable Diffusion XL';
 }
 
 function saveToken(){
@@ -889,10 +899,17 @@ function saveToken(){
   }
   HF_TOKEN=val;
   try{localStorage.setItem('hf_token',val);}catch(e){}
-  document.getElementById('hf-token-wrap').style.display='none';
-  document.getElementById('ai-hint').textContent='Token activo \u2713 · Stable Diffusion XL';
+  showTokenActive();
   stat('\u2728 Token guardado \u2014 ahora podés generar imágenes');
   setTimeout(function(){document.getElementById('ai-prompt').focus();},60);
+}
+
+function clearToken(){
+  HF_TOKEN='';
+  try{localStorage.removeItem('hf_token');}catch(e){}
+  document.getElementById('hf-token').value='';
+  showTokenForm();
+  stat('Token eliminado \u2014 pegá el nuevo y guardá');
 }
 
 function genAI(){
