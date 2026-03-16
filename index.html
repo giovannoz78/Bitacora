@@ -217,14 +217,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
     <div class="ai-row">
       <select class="ai-sel" id="ai-size">
         <option value="512x512">512 × 512</option>
-        <option value="768x512">768 × 512</option>
-        <option value="512x768">512 × 768</option>
-        <option value="1024x1024">1024 × 1024</option>
       </select>
       <button class="ai-gen" id="ai-btn" onclick="genAI()">Generar</button>
     </div>
     <img id="ai-preview" class="ai-preview" title="Clic para colocar en el lienzo">
-    <div class="ai-hint" id="ai-hint">Hugging Face · Stable Diffusion XL · gratis</div>
+    <div class="ai-hint" id="ai-hint">Hugging Face · Stable Diffusion 1.5 · gratis</div>
   </div>
 
   <input type="file" id="img-upload" accept="image/*" onchange="loadImg(event)">
@@ -857,8 +854,8 @@ function delNote(i){
 // ── IA · HUGGING FACE ────────────────────────────────────────
 var aiOpen=false;
 var HF_TOKEN='';
-var HF_MODEL='stabilityai/stable-diffusion-xl-base-1.0';
-var HF_MODEL_NAME='Stable Diffusion XL';
+var HF_MODEL='runwayml/stable-diffusion-v1-5';
+var HF_MODEL_NAME='Stable Diffusion 1.5';
 
 function toggleAI(){
   aiOpen=!aiOpen;
@@ -888,7 +885,7 @@ function showTokenForm(){
 function showTokenActive(){
   document.getElementById('hf-token-wrap').style.display='none';
   document.getElementById('hf-token-active').style.display='flex';
-  document.getElementById('ai-hint').textContent='Token activo \u2713 \u00B7 Stable Diffusion XL';
+  document.getElementById('ai-hint').textContent='Token activo \u2713 \u00B7 Stable Diffusion 1.5';
 }
 
 function saveToken(){
@@ -933,7 +930,7 @@ function genAI(){
 
   btn.disabled=true;
   btn.innerHTML='<span class="ai-spin">&#10024;</span> Generando...';
-  hint.textContent='Generando con Stable Diffusion XL...';
+  hint.textContent='Generando con Stable Diffusion 1.5...';
   prev.style.display='none';
   prev.onclick=null;
   stat('\u2728 Generando imagen \u2014 puede tardar 15\u201330 seg...');
@@ -945,8 +942,8 @@ function genAI(){
       'Content-Type':'application/json'
     },
     body:JSON.stringify({
-      inputs:prompt,
-      parameters:{width:w, height:h, num_inference_steps:20}
+      inputs: prompt,
+      parameters:{ num_inference_steps: 25, guidance_scale: 7.5 }
     })
   })
   .then(function(res){
@@ -968,21 +965,33 @@ function genAI(){
     }
     if(res.status===503){
       return res.json().then(function(j){
-        var wait=j.estimated_time||20;
-        hint.textContent='Modelo cargando \u2014 reintentando en '+Math.ceil(wait)+' seg...';
-        stat('\u23F1 Modelo iniciando \u2014 reintentando en '+Math.ceil(wait)+'s');
-        btn.disabled=false; btn.innerHTML='Reintentar';
+        var wait=Math.ceil(j.estimated_time||25);
+        hint.textContent='Modelo iniciando \u2014 reintentando en '+wait+' seg...';
+        stat('\u23F1 Modelo fr\u00edo en HF \u2014 reintentando en '+wait+'s autom\u00e1ticamente');
+        // Auto-reintento
+        setTimeout(function(){
+          if(btn.disabled)return;
+          btn.disabled=true;
+          btn.innerHTML='<span class="ai-spin">&#10024;</span> Reintentando...';
+          genAI();
+        }, wait*1000);
         throw new Error('skip');
-      }).catch(function(){
-        hint.textContent='Modelo cargando \u2014 presioná Reintentar en 20 seg';
-        stat('\u23F1 Modelo iniciando en HF \u2014 presioná Reintentar');
+      }).catch(function(e){
+        if(e.message==='skip')throw e;
+        hint.textContent='Modelo iniciando \u2014 presioná Reintentar en 30 seg';
+        stat('\u23F1 Modelo fr\u00edo \u2014 presioná Reintentar en 30 segundos');
         btn.disabled=false; btn.innerHTML='Reintentar';
         throw new Error('skip');
       });
     }
     if(!res.ok){
       return res.text().then(function(t){
-        throw new Error('HTTP '+res.status+' \u2014 '+t.slice(0,80));
+        var msg='HTTP '+res.status;
+        try{ var j=JSON.parse(t); msg+=': '+(j.error||t).slice(0,100); }catch(e){ msg+=': '+t.slice(0,100); }
+        stat('\u274C '+msg);
+        hint.textContent='Error '+res.status+' \u2014 ver mensaje dorado';
+        btn.disabled=false; btn.innerHTML='Reintentar';
+        throw new Error('skip');
       });
     }
     return res.blob();
@@ -1005,7 +1014,7 @@ function genAI(){
         prev.onclick=null;
         hint.textContent='Colocada en el lienzo \u2713';
         setTimeout(function(){
-          hint.textContent='Token activo \u2713 · Stable Diffusion XL';
+          hint.textContent='Token activo \u2713 · Stable Diffusion 1.5';
         },2500);
       };
     };
