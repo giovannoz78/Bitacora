@@ -14,7 +14,7 @@ body{display:flex;height:100vh;overflow:hidden;background:#111;font-family:'JetB
 .sec{padding:10px 14px;border-bottom:1px solid #2e2618}
 .lbl{font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#9a8a6a;margin-bottom:8px}
 /* tools */
-.tg{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.tg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
 .tb{padding:8px 4px;border:1px solid #3a3020;background:rgba(255,255,255,0.04);border-radius:4px;cursor:pointer;color:#9a8a6a;font-size:13px;transition:all .12s;font-family:'JetBrains Mono',monospace}
 .tb:hover,.tb.on{border-color:#c8a96e;color:#c8a96e;background:rgba(200,169,110,.12)}
 /* bg */
@@ -86,6 +86,21 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 .atx-copy{width:100%;margin-top:4px;padding:3px;border-radius:3px;border:1px solid #2e2618;background:transparent;color:#6a5a42;font-family:'JetBrains Mono',monospace;font-size:7px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .1s}
 .atx-copy:hover{border-color:#c8a96e;color:#c8a96e}
 .stt-badge{font-size:7px;color:#4a3a22;letter-spacing:.1em;text-align:right;margin-bottom:3px}
+/* ai gen */
+.ai-prompt{width:100%;padding:5px 7px;background:rgba(255,255,255,.04);border:1px solid #3a3020;border-radius:4px;color:#e8dcc8;font-family:'JetBrains Mono',monospace;font-size:9px;outline:none;resize:none;line-height:1.5;margin-bottom:6px}
+.ai-prompt::placeholder{color:#3a2a1a}
+.ai-prompt:focus{border-color:rgba(200,169,110,.4)}
+.ai-row{display:flex;gap:4px;margin-bottom:6px}
+.ai-sel{flex:1;padding:4px 5px;background:rgba(255,255,255,.04);border:1px solid #3a3020;border-radius:3px;color:#9a8a6a;font-family:'JetBrains Mono',monospace;font-size:8px;outline:none;cursor:pointer}
+.ai-sel option{background:#1a1510}
+.ai-gen{padding:6px 10px;border-radius:4px;border:1px solid #c8a96e;background:rgba(200,169,110,.08);color:#c8a96e;font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .12s;white-space:nowrap}
+.ai-gen:hover{background:rgba(200,169,110,.18)}
+.ai-gen:disabled{opacity:.35;cursor:not-allowed}
+.ai-preview{width:100%;border-radius:4px;border:1px solid #2e2618;display:none;margin-bottom:6px;cursor:pointer}
+.ai-preview:hover{border-color:#c8a96e}
+.ai-hint{font-size:7px;color:#3a2a1a;line-height:1.6;text-align:center}
+.ai-spin{display:inline-block;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -100,6 +115,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
       <button class="tb"    id="t-text"  onclick="ST('text')"  title="T">T</button>
       <button class="tb"    id="t-img"   onclick="document.getElementById('img-upload').click()">&#128444;</button>
       <button class="tb"    id="t-mic"   onclick="toggleMic()" title="M">&#127897;</button>
+      <button class="tb"    id="t-ai"    onclick="toggleAI()"  title="I">&#10024;</button>
     </div>
   </div>
 
@@ -184,6 +200,22 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
     <button class="ab d" onclick="doClear()">&#10005; Limpiar todo</button>
   </div>
 
+  <div class="sec" id="aipanel" style="display:none">
+    <div class="lbl">Generar imagen &#10024;</div>
+    <textarea class="ai-prompt" id="ai-prompt" rows="3" placeholder="Describe la imagen... ej: tinta china sobre papel, figura humana fragmentada, fondo oscuro"></textarea>
+    <div class="ai-row">
+      <select class="ai-sel" id="ai-size">
+        <option value="512x512">512 × 512</option>
+        <option value="768x512">768 × 512</option>
+        <option value="512x768">512 × 768</option>
+        <option value="1024x768">1024 × 768</option>
+      </select>
+      <button class="ai-gen" id="ai-btn" onclick="genAI()">Generar</button>
+    </div>
+    <img id="ai-preview" class="ai-preview" title="Clic para colocar en el lienzo">
+    <div class="ai-hint" id="ai-hint">Powered by Pollinations.ai &middot; gratis &middot; sin clave</div>
+  </div>
+
   <input type="file" id="img-upload" accept="image/*" onchange="loadImg(event)">
 </div>
 
@@ -197,7 +229,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
     </div>
   </div>
   <div id="st"></div>
-  <div id="tip">B pincel &nbsp; E borrar &nbsp; T texto &nbsp; M audio &nbsp; Z deshacer &nbsp; [ ] tamano &nbsp; rueda = tamano</div>
+  <div id="tip">B pincel &nbsp; E borrar &nbsp; T texto &nbsp; M audio &nbsp; I ia &nbsp; Z deshacer &nbsp; [ ] tamano &nbsp; rueda = tamano</div>
 </div>
 
 <script>
@@ -406,6 +438,7 @@ document.addEventListener('keydown',function(e){
   if(e.key==='t'||e.key==='T')ST('text');
   if(e.key==='s'||e.key==='S')doSave();
   if(e.key==='m'||e.key==='M')toggleMic();
+  if(e.key==='i'||e.key==='I')toggleAI();
   if(e.key==='['){bSz=Math.max(1,bSz-2);document.getElementById('sl-s').value=bSz;document.getElementById('v-s').textContent=Math.round(bSz);}
   if(e.key===']'){bSz=Math.min(80,bSz+2);document.getElementById('sl-s').value=bSz;document.getElementById('v-s').textContent=Math.round(bSz);}
 });
@@ -810,7 +843,103 @@ function delNote(i){
   audioNotes.splice(i,1);
   renderNotes();
 }
-// ────────────────────────────────────────────────────────────
+// ── IA · POLLINATIONS.AI ─────────────────────────────────────
+var aiOpen=false;
+
+function toggleAI(){
+  aiOpen=!aiOpen;
+  var p=document.getElementById('aipanel');
+  var tb=document.getElementById('t-ai');
+  p.style.display=aiOpen?'block':'none';
+  tb.classList.toggle('on',aiOpen);
+  if(aiOpen){
+    setTimeout(function(){document.getElementById('ai-prompt').focus();},60);
+    stat('Describí la imagen y presioná Generar');
+  }
+}
+
+function genAI(){
+  var prompt=document.getElementById('ai-prompt').value.trim();
+  if(!prompt){stat('Escribí un prompt primero');return;}
+
+  var sizeVal=document.getElementById('ai-size').value;
+  var parts=sizeVal.split('x');
+  var w=parseInt(parts[0]), h=parseInt(parts[1]);
+
+  var btn=document.getElementById('ai-btn');
+  var hint=document.getElementById('ai-hint');
+  var prev=document.getElementById('ai-preview');
+
+  btn.disabled=true;
+  btn.innerHTML='<span class="ai-spin">&#10024;</span> Generando...';
+  hint.textContent='Puede tardar 20\u201340 seg\u2026';
+  prev.style.display='none';
+  prev.onclick=null;
+
+  var seed=Math.floor(Math.random()*99999);
+  var url='https://image.pollinations.ai/prompt/'+
+    encodeURIComponent(prompt)+
+    '?width='+w+'&height='+h+'&seed='+seed+'&nologo=true&model=flux&nofeed=true';
+
+  var controller=new AbortController();
+  var timeoutId=setTimeout(function(){controller.abort();},90000);
+
+  fetch(url,{signal:controller.signal})
+  .then(function(res){
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    return res.blob();
+  })
+  .then(function(blob){
+    clearTimeout(timeoutId);
+    var blobUrl=URL.createObjectURL(blob);
+    var img=new Image();
+    img.onload=function(){
+      // Limpiar blob URL anterior si existe
+      if(prev._blobUrl)URL.revokeObjectURL(prev._blobUrl);
+      prev._blobUrl=blobUrl;
+      prev.src=blobUrl;
+      prev.style.display='block';
+      hint.textContent='Clic en la imagen para colocarla en el lienzo';
+      btn.disabled=false;
+      btn.innerHTML='Generar otra';
+      stat('Imagen generada \u2014 clic para colocarla');
+      prev.onclick=function(){
+        placeAIImg(img);
+        prev.onclick=null;
+        hint.textContent='Imagen colocada \u2713';
+        setTimeout(function(){
+          hint.textContent='Powered by Pollinations.ai \u00B7 gratis \u00B7 sin clave';
+        },2500);
+      };
+    };
+    img.src=blobUrl;
+  })
+  .catch(function(err){
+    clearTimeout(timeoutId);
+    btn.disabled=false;
+    btn.innerHTML='Reintentar';
+    if(err.name==='AbortError'){
+      hint.textContent='Tardó demasiado \u2014 reintentá';
+      stat('Timeout \u2014 Pollinations lento, reintentá');
+    } else {
+      hint.textContent='Sin conexi\u00f3n o prompt bloqueado';
+      stat('Error: '+err.message);
+    }
+  });
+}
+
+function placeAIImg(im){
+  push();
+  var mw=Math.min(500,cvs.width*0.6);
+  var ratio=im.naturalHeight/im.naturalWidth;
+  var ix=cvs.width/2-mw/2;
+  var iy=cvs.height/2-(mw*ratio)/2;
+  var obj={img:im,x:ix,y:iy,w:mw,h:mw*ratio,bw:mw,bh:mw*ratio,op:1,sc:100,ox:0,oy:0};
+  imgs.push(obj); selI=imgs.length-1;
+  redraw(); showImgPanel();
+  stat('Imagen IA colocada \u2014 ajust\u00e1 transparencia y escala');
+}
+// ─────────────────────────────────────────────────────────────
 </script>
 </body>
 </html>
