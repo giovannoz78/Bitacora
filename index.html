@@ -854,8 +854,13 @@ function delNote(i){
 // ── IA · HUGGING FACE ────────────────────────────────────────
 var aiOpen=false;
 var HF_TOKEN='';
-var HF_MODEL='runwayml/stable-diffusion-v1-5';
-var HF_MODEL_NAME='Stable Diffusion 1.5';
+var HF_MODELS=[
+  'stabilityai/stable-diffusion-2-1-base',
+  'Lykon/dreamshaper-8',
+  'prompthero/openjourney-v4',
+  'CompVis/stable-diffusion-v1-4'
+];
+var HF_MODEL_NAME='IA generativa';
 
 function toggleAI(){
   aiOpen=!aiOpen;
@@ -911,7 +916,7 @@ function clearToken(){
 
 function genAI(){
   if(!HF_TOKEN){
-    document.getElementById('hf-token-wrap').style.display='block';
+    showTokenForm();
     document.getElementById('hf-token').focus();
     stat('\u26A0\uFE0F Primero guardá tu token de Hugging Face');
     return;
@@ -920,119 +925,117 @@ function genAI(){
   var prompt=document.getElementById('ai-prompt').value.trim();
   if(!prompt){stat('Escribí un prompt primero');return;}
 
-  var sizeVal=document.getElementById('ai-size').value;
-  var parts=sizeVal.split('x');
-  var w=parseInt(parts[0]), h=parseInt(parts[1]);
-
   var btn=document.getElementById('ai-btn');
   var hint=document.getElementById('ai-hint');
   var prev=document.getElementById('ai-preview');
 
   btn.disabled=true;
-  btn.innerHTML='<span class="ai-spin">&#10024;</span> Generando...';
-  hint.textContent='Generando con Stable Diffusion 1.5...';
   prev.style.display='none';
   prev.onclick=null;
-  stat('\u2728 Generando imagen \u2014 puede tardar 15\u201330 seg...');
 
-  fetch('https://api-inference.huggingface.co/models/'+HF_MODEL,{
-    method:'POST',
-    headers:{
-      'Authorization':'Bearer '+HF_TOKEN,
-      'Content-Type':'application/json'
-    },
-    body:JSON.stringify({
-      inputs: prompt,
-      parameters:{ num_inference_steps: 25, guidance_scale: 7.5 }
+  var modelIdx=0;
+
+  function tryModel(){
+    var model=HF_MODELS[modelIdx];
+    var shortName=model.split('/')[1];
+    btn.innerHTML='<span class="ai-spin">&#10024;</span> Generando...';
+    hint.textContent='Probando '+shortName+'...';
+    stat('\u2728 Generando con '+shortName+' \u2014 esperá...');
+
+    fetch('https://api-inference.huggingface.co/models/'+model,{
+      method:'POST',
+      headers:{
+        'Authorization':'Bearer '+HF_TOKEN,
+        'Content-Type':'application/json'
+      },
+      body:JSON.stringify({
+        inputs: prompt,
+        parameters:{ num_inference_steps:20, guidance_scale:7.5 }
+      })
     })
-  })
-  .then(function(res){
-    if(res.status===401){
-      HF_TOKEN='';
-      try{localStorage.removeItem('hf_token');}catch(e){}
-      document.getElementById('hf-token-wrap').style.display='block';
-      document.getElementById('hf-token').value='';
-      btn.disabled=false; btn.innerHTML='Reintentar';
-      hint.textContent='Token inv\u00e1lido \u2014 ingres\u00e1 uno nuevo';
-      stat('\u274C Token inv\u00e1lido \u2014 revisá que sea tipo Read en huggingface.co');
-      throw new Error('skip');
-    }
-    if(res.status===403){
-      btn.disabled=false; btn.innerHTML='Reintentar';
-      hint.textContent='Acceso denegado al modelo (403)';
-      stat('\u274C Error 403 \u2014 el token no tiene permiso para este modelo');
-      throw new Error('skip');
-    }
-    if(res.status===503){
-      return res.json().then(function(j){
-        var wait=Math.ceil(j.estimated_time||25);
-        hint.textContent='Modelo iniciando \u2014 reintentando en '+wait+' seg...';
-        stat('\u23F1 Modelo fr\u00edo en HF \u2014 reintentando en '+wait+'s autom\u00e1ticamente');
-        // Auto-reintento
-        setTimeout(function(){
-          if(btn.disabled)return;
-          btn.disabled=true;
-          btn.innerHTML='<span class="ai-spin">&#10024;</span> Reintentando...';
-          genAI();
-        }, wait*1000);
-        throw new Error('skip');
-      }).catch(function(e){
-        if(e.message==='skip')throw e;
-        hint.textContent='Modelo iniciando \u2014 presioná Reintentar en 30 seg';
-        stat('\u23F1 Modelo fr\u00edo \u2014 presioná Reintentar en 30 segundos');
+    .then(function(res){
+      if(res.status===401){
+        HF_TOKEN='';
+        try{localStorage.removeItem('hf_token');}catch(e){}
+        showTokenForm();
+        document.getElementById('hf-token').value='';
         btn.disabled=false; btn.innerHTML='Reintentar';
+        hint.textContent='Token inv\u00e1lido \u2014 ingres\u00e1 uno nuevo';
+        stat('\u274C Token inv\u00e1lido \u2014 generá uno nuevo en huggingface.co/settings/tokens');
         throw new Error('skip');
-      });
-    }
-    if(!res.ok){
-      return res.text().then(function(t){
-        var msg='HTTP '+res.status;
-        try{ var j=JSON.parse(t); msg+=': '+(j.error||t).slice(0,100); }catch(e){ msg+=': '+t.slice(0,100); }
-        stat('\u274C '+msg);
-        hint.textContent='Error '+res.status+' \u2014 ver mensaje dorado';
-        btn.disabled=false; btn.innerHTML='Reintentar';
-        throw new Error('skip');
-      });
-    }
-    return res.blob();
-  })
-  .then(function(blob){
-    if(!blob)return;
-    var url=URL.createObjectURL(blob);
-    var img=new Image();
-    img.onload=function(){
-      if(prev._blobUrl)URL.revokeObjectURL(prev._blobUrl);
-      prev._blobUrl=url;
-      prev.src=url;
-      prev.style.display='block';
-      hint.textContent='\u2193 Clic en la imagen para colocarla en el lienzo';
-      btn.disabled=false;
-      btn.innerHTML='Generar otra';
-      stat('\u2728 Imagen lista \u2014 clic para colocarla en el lienzo');
-      prev.onclick=function(){
-        placeAIImg(img);
-        prev.onclick=null;
-        hint.textContent='Colocada en el lienzo \u2713';
-        setTimeout(function(){
-          hint.textContent='Token activo \u2713 · Stable Diffusion 1.5';
-        },2500);
+      }
+      // 403/404/500 → probar siguiente modelo
+      if(res.status===403||res.status===404||res.status===500){
+        throw new Error('next');
+      }
+      if(res.status===503){
+        return res.json().then(function(j){
+          var wait=Math.ceil(j.estimated_time||20);
+          hint.textContent=shortName+' iniciando \u2014 reintentando en '+wait+'s...';
+          stat('\u23F1 '+shortName+' fr\u00edo \u2014 reintentando en '+wait+'s');
+          setTimeout(tryModel, wait*1000);
+          throw new Error('skip');
+        }).catch(function(e){
+          if(e.message==='skip')throw e;
+          setTimeout(tryModel, 20000);
+          throw new Error('skip');
+        });
+      }
+      if(!res.ok) throw new Error('next');
+      return res.blob();
+    })
+    .then(function(blob){
+      if(!blob)return;
+      var url=URL.createObjectURL(blob);
+      var img=new Image();
+      img.onload=function(){
+        if(prev._blobUrl)URL.revokeObjectURL(prev._blobUrl);
+        prev._blobUrl=url;
+        prev.src=url;
+        prev.style.display='block';
+        hint.textContent='\u2193 Clic en la imagen para colocarla en el lienzo';
+        btn.disabled=false;
+        btn.innerHTML='Generar otra';
+        stat('\u2728 Imagen lista con '+shortName+' \u2014 clic para colocarla');
+        prev.onclick=function(){
+          placeAIImg(img);
+          prev.onclick=null;
+          hint.textContent='Colocada en el lienzo \u2713';
+          setTimeout(function(){
+            hint.textContent='Token activo \u2713 \u00B7 '+shortName;
+          },2500);
+        };
       };
-    };
-    img.onerror=function(){
-      btn.disabled=false;
-      btn.innerHTML='Reintentar';
-      hint.textContent='Error al cargar imagen \u2014 reintentá';
-      stat('\u274C Error al cargar la imagen generada');
-    };
-    img.src=url;
-  })
-  .catch(function(err){
-    if(err.message==='skip')return;
-    btn.disabled=false;
-    btn.innerHTML='Reintentar';
-    hint.textContent='Error \u2014 reintentá';
-    stat('\u274C '+err.message);
-  });
+      img.onerror=function(){
+        btn.disabled=false; btn.innerHTML='Reintentar';
+        hint.textContent='Error al mostrar la imagen';
+        stat('\u274C Error al cargar la imagen generada');
+      };
+      img.src=url;
+    })
+    .catch(function(err){
+      if(err.message==='skip') return;
+      if(err.message==='next'){
+        modelIdx++;
+        if(modelIdx<HF_MODELS.length){
+          hint.textContent='Probando modelo alternativo...';
+          stat('\u26A0\uFE0F '+shortName+' no disponible \u2014 probando siguiente...');
+          setTimeout(tryModel, 1000);
+        } else {
+          btn.disabled=false; btn.innerHTML='Reintentar';
+          hint.textContent='Ning\u00fan modelo disponible ahora \u2014 reintentá';
+          stat('\u274C Todos los modelos fallaron \u2014 reintentá en unos minutos');
+        }
+        return;
+      }
+      // Error de red
+      btn.disabled=false; btn.innerHTML='Reintentar';
+      hint.textContent='Error de conexi\u00f3n';
+      stat('\u274C Error de red: '+err.message);
+    });
+  }
+
+  tryModel();
 }
 
 function placeAIImg(im){
