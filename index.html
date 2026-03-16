@@ -872,114 +872,85 @@ function genAI(){
 
   btn.disabled=true;
   btn.innerHTML='<span class="ai-spin">&#10024;</span> Generando...';
-  hint.textContent='Iniciando...';
   prev.style.display='none';
   prev.onclick=null;
 
   var seed=Math.floor(Math.random()*99999);
-  var models=['turbo','flux','flux-realism'];
+  var models=['turbo','flux','dreamshaper','stable-diffusion'];
   var modelIdx=0;
-  var attempt=0;
 
-  function tryFetch(){
-    var currentModel=models[modelIdx];
-    attempt++;
-    var tryUrl='https://image.pollinations.ai/prompt/'+
+  function tryModel(){
+    var m=models[modelIdx];
+    var url='https://image.pollinations.ai/prompt/'+
       encodeURIComponent(prompt)+
-      '?width='+w+'&height='+h+'&seed='+seed+'&nologo=true&model='+currentModel;
+      '?width='+w+'&height='+h+'&seed='+(seed+modelIdx)+
+      '&nologo=true&model='+m;
 
-    var msg='['+currentModel+'] intento '+attempt+'...';
-    hint.textContent=msg;
-    stat('\u2728 '+msg);
+    hint.textContent='Generando con '+m+'...';
+    stat('\u2728 Generando con modelo '+m+' \u2014 esperá...');
 
-    var controller=new AbortController();
-    var timeoutId=setTimeout(function(){controller.abort();},90000);
+    // Timeout manual
+    var done=false;
+    var tid=setTimeout(function(){
+      if(done)return;
+      done=true;
+      nextModel('timeout');
+    }, 45000);
 
-    fetch(tryUrl,{signal:controller.signal})
-    .then(function(res){
-      clearTimeout(timeoutId);
-      // 429 = rate limit  |  500/503 = server error → probar otro modelo
-      if(res.status===429||res.status===500||res.status===503){
-        var reason=res.status===429?'límite de requests':'error del servidor ('+res.status+')';
-        modelIdx++;
-        if(modelIdx<models.length){
-          var next=models[modelIdx];
-          hint.textContent='Cambiando a modelo '+next+'...';
-          stat('\u26A0\uFE0F '+reason+' \u2014 probando '+next);
-          setTimeout(tryFetch, 2500);
-        } else {
-          // Reintentar el primero con delay
-          modelIdx=0;
-          if(attempt<6){
-            hint.textContent='Pollinations saturado \u2014 reintentando en 8 seg...';
-            stat('\u23F1 Pollinations saturado \u2014 reintentando...');
-            setTimeout(tryFetch, 8000);
-          } else {
-            btn.disabled=false;
-            btn.innerHTML='Reintentar';
-            hint.textContent='Servicio saturado \u2014 esperá un rato y reintentá';
-            stat('\u274C Pollinations no responde \u2014 esperá y reintentá');
-          }
-        }
-        return null;
-      }
-      if(!res.ok)throw new Error('HTTP '+res.status);
-      return res.blob();
-    })
-    .then(function(blob){
-      if(!blob)return;
-      var blobUrl=URL.createObjectURL(blob);
-      var img=new Image();
-      img.onload=function(){
-        if(prev._blobUrl)URL.revokeObjectURL(prev._blobUrl);
-        prev._blobUrl=blobUrl;
-        prev.src=blobUrl;
-        prev.style.display='block';
-        hint.textContent='Clic en la imagen \u2193 para colocarla en el lienzo';
-        btn.disabled=false;
-        btn.innerHTML='Generar otra';
-        stat('\u2728 Imagen lista \u2014 clic para colocarla en el lienzo');
-        prev.onclick=function(){
-          placeAIImg(img);
-          prev.onclick=null;
-          hint.textContent='Imagen colocada \u2713';
-          setTimeout(function(){
-            hint.textContent='Powered by Pollinations.ai \u00B7 gratis \u00B7 sin clave';
-          },2500);
-        };
+    var img=new Image();
+
+    img.onload=function(){
+      if(done)return;
+      done=true;
+      clearTimeout(tid);
+      // Éxito — mostramos preview
+      prev.src=img.src;
+      prev.style.display='block';
+      hint.textContent='\u2193 Clic en la imagen para colocarla en el lienzo';
+      btn.disabled=false;
+      btn.innerHTML='Generar otra';
+      stat('\u2728 Imagen lista \u2014 clic para colocarla');
+      prev.onclick=function(){
+        placeAIImg(img);
+        prev.onclick=null;
+        hint.textContent='Colocada en el lienzo \u2713';
+        setTimeout(function(){
+          hint.textContent='Powered by Pollinations.ai \u00B7 gratis \u00B7 sin clave';
+        },2500);
       };
-      img.src=blobUrl;
-    })
-    .catch(function(err){
-      clearTimeout(timeoutId);
-      if(err.name==='AbortError'){
-        modelIdx++;
-        if(modelIdx<models.length){
-          hint.textContent='Timeout \u2014 probando modelo '+models[modelIdx]+'...';
-          stat('\u23F1 Timeout \u2014 probando '+models[modelIdx]);
-          setTimeout(tryFetch, 1000);
-        } else {
-          btn.disabled=false;
-          btn.innerHTML='Reintentar';
-          hint.textContent='Sin respuesta \u2014 reintentá';
-          stat('\u274C Timeout en todos los modelos');
-        }
-      } else {
-        btn.disabled=false;
-        btn.innerHTML='Reintentar';
-        hint.textContent='Error: '+err.message;
-        stat('\u274C '+err.message);
-      }
-    });
+    };
+
+    img.onerror=function(){
+      if(done)return;
+      done=true;
+      clearTimeout(tid);
+      nextModel('error');
+    };
+
+    img.src=url;
   }
 
-  tryFetch();
+  function nextModel(reason){
+    modelIdx++;
+    if(modelIdx<models.length){
+      stat('\u26A0\uFE0F '+reason+' \u2014 probando '+models[modelIdx]+'...');
+      hint.textContent='Probando modelo alternativo...';
+      setTimeout(tryModel, 1500);
+    } else {
+      btn.disabled=false;
+      btn.innerHTML='Reintentar';
+      hint.textContent='Pollinations no responde \u2014 esperá y reintentá';
+      stat('\u274C Pollinations saturado \u2014 esperá unos minutos y reintentá');
+    }
+  }
+
+  tryModel();
 }
 
 function placeAIImg(im){
   push();
   var mw=Math.min(500,cvs.width*0.6);
-  var ratio=im.naturalHeight/im.naturalWidth;
+  var ratio=im.naturalHeight/im.naturalWidth||1;
   var ix=cvs.width/2-mw/2;
   var iy=cvs.height/2-(mw*ratio)/2;
   var obj={img:im,x:ix,y:iy,w:mw,h:mw*ratio,bw:mw,bh:mw*ratio,op:1,sc:100,ox:0,oy:0};
