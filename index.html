@@ -81,6 +81,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 .anb:hover{border-color:#c8a96e;color:#c8a96e}
 .anb.pl{color:#c04a2a;border-color:#c04a2a}
 .no-notes{font-size:8px;color:#3a2a1a;text-align:center;padding:8px 0}
+.atx{font-size:8px;color:#7a6a4a;line-height:1.6;margin-top:5px;padding:4px 5px;background:rgba(200,169,110,.05);border-radius:3px;border:1px solid #2a2010;min-height:20px;word-break:break-word}
+.atx.live{color:#c8a96e;border-color:rgba(200,169,110,.25)}
+.atx-copy{width:100%;margin-top:4px;padding:3px;border-radius:3px;border:1px solid #2e2618;background:transparent;color:#6a5a42;font-family:'JetBrains Mono',monospace;font-size:7px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .1s}
+.atx-copy:hover{border-color:#c8a96e;color:#c8a96e}
+.stt-badge{font-size:7px;color:#4a3a22;letter-spacing:.1em;text-align:right;margin-bottom:3px}
 </style>
 </head>
 <body>
@@ -163,6 +168,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
     </button>
     <div class="rec-timer" id="rec-timer"></div>
     <div class="rec-meter"><div class="rec-bar" id="rec-bar"></div></div>
+    <div id="stt-wrap" style="display:none">
+      <div class="stt-badge" id="stt-badge">&#9679; transcribiendo...</div>
+      <div class="atx live" id="stt-live">—</div>
+    </div>
     <div class="atray" id="atray">
       <div class="no-notes" id="no-notes">Sin notas de audio</div>
     </div>
@@ -589,13 +598,19 @@ function stat(msg){
   _st=setTimeout(function(){s.classList.remove('v');},2000);
 }
 
-// ── AUDIO DICTATION ─────────────────────────────────────────
+// ── AUDIO DICTATION + TRANSCRIPCIÓN ─────────────────────────
 var micOpen=false, isRec=false;
 var mediaRec=null, recStream=null;
 var recChunks=[], recSecs=0;
 var recTimer=null, meterRaf=null;
 var recACtx=null, recAnalyser=null;
 var audioNotes=[];
+
+// Speech recognition
+var SpeechRec=window.SpeechRecognition||window.webkitSpeechRecognition;
+var sttRec=null;
+var sttFinal='', sttInterim='';
+var sttAvail=!!SpeechRec;
 
 function toggleMic(){
   micOpen=!micOpen;
@@ -620,6 +635,7 @@ function startRec(){
   navigator.mediaDevices.getUserMedia({audio:true,video:false})
   .then(function(stream){
     recStream=stream; recChunks=[]; isRec=true;
+    sttFinal=''; sttInterim='';
 
     // Level meter
     recACtx=new(window.AudioContext||window.webkitAudioContext)();
@@ -640,13 +656,34 @@ function startRec(){
     mediaRec.ondataavailable=function(e){if(e.data.size>0)recChunks.push(e.data);};
     mediaRec.onstop=function(){
       var blob=new Blob(recChunks,{type:'audio/webm'});
-      addNote(blob);
+      addNote(blob, sttFinal.trim());
     };
     mediaRec.start();
 
     // Timer
     recSecs=0; tickTimer();
     recTimer=setInterval(tickTimer,1000);
+
+    // Transcripción
+    if(sttAvail){
+      sttRec=new SpeechRec();
+      sttRec.continuous=true;
+      sttRec.interimResults=true;
+      sttRec.lang=navigator.language||'es-AR';
+      sttRec.onresult=function(e){
+        sttInterim='';
+        for(var i=e.resultIndex;i<e.results.length;i++){
+          if(e.results[i].isFinal) sttFinal+=e.results[i][0].transcript+' ';
+          else sttInterim+=e.results[i][0].transcript;
+        }
+        var live=document.getElementById('stt-live');
+        if(live)live.textContent=(sttFinal+sttInterim)||'—';
+      };
+      sttRec.onerror=function(){};
+      sttRec.start();
+      document.getElementById('stt-wrap').style.display='block';
+      document.getElementById('stt-live').textContent='—';
+    }
 
     // UI
     document.getElementById('rec-btn').classList.add('rec');
@@ -658,6 +695,7 @@ function startRec(){
 
 function stopRec(){
   isRec=false;
+  if(sttRec){try{sttRec.stop();}catch(e){}sttRec=null;}
   if(mediaRec&&mediaRec.state!=='inactive')mediaRec.stop();
   if(recStream)recStream.getTracks().forEach(function(t){t.stop();});
   if(recTimer)clearInterval(recTimer);
@@ -667,6 +705,7 @@ function stopRec(){
   document.getElementById('rec-timer').textContent='';
   document.getElementById('rec-btn').classList.remove('rec');
   document.getElementById('rec-lbl').textContent='Grabar nota';
+  document.getElementById('stt-wrap').style.display='none';
   stat('Nota guardada');
 }
 
@@ -677,10 +716,10 @@ function tickTimer(){
   recSecs++;
 }
 
-function addNote(blob){
+function addNote(blob, transcript){
   var now=new Date();
   var ts=(now.getHours()<10?'0':'')+now.getHours()+':'+(now.getMinutes()<10?'0':'')+now.getMinutes();
-  audioNotes.push({blob:blob,url:URL.createObjectURL(blob),ts:ts});
+  audioNotes.push({blob:blob,url:URL.createObjectURL(blob),ts:ts,tx:transcript||''});
   renderNotes();
 }
 
@@ -694,6 +733,12 @@ function renderNotes(){
     var d=document.createElement('div');
     d.className='anote';
     d.id='anote-'+i;
+    var txBlock='';
+    if(note.tx){
+      txBlock=
+        '<div class="atx" id="atx-'+i+'">'+esc(note.tx)+'</div>'+
+        '<button class="atx-copy" onclick="copyTx('+i+')">&#9112; copiar texto al portapapeles</button>';
+    }
     d.innerHTML=
       '<div class="anote-top">'+
         '<span class="anote-lbl">Nota '+(i+1)+' &middot; '+note.ts+'</span>'+
@@ -703,8 +748,29 @@ function renderNotes(){
           '<button class="anb" onclick="delNote('+i+')" title="Eliminar">&#10005;</button>'+
         '</div>'+
       '</div>'+
+      txBlock+
       '<audio id="aud-'+i+'" src="'+note.url+'" style="display:none"></audio>';
     tray.appendChild(d);
+  });
+}
+
+function esc(t){
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function copyTx(i){
+  var n=audioNotes[i]; if(!n||!n.tx)return;
+  navigator.clipboard.writeText(n.tx).then(function(){
+    stat('Texto copiado al portapapeles');
+  }).catch(function(){
+    // fallback
+    var ta=document.createElement('textarea');
+    ta.value=n.tx;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    stat('Texto copiado');
   });
 }
 
@@ -712,7 +778,6 @@ function playNote(i){
   var aud=document.getElementById('aud-'+i);
   var btn=document.getElementById('pb-'+i);
   if(!aud)return;
-  // pause all others
   audioNotes.forEach(function(_,j){
     if(j===i)return;
     var a=document.getElementById('aud-'+j);
