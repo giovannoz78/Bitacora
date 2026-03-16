@@ -855,10 +855,7 @@ function delNote(i){
 var aiOpen=false;
 var HF_TOKEN='';
 var HF_MODELS=[
-  'stabilityai/stable-diffusion-2-1-base',
-  'Lykon/dreamshaper-8',
-  'prompthero/openjourney-v4',
-  'CompVis/stable-diffusion-v1-4'
+  'stabilityai/stable-diffusion-2-1-base'
 ];
 var HF_MODEL_NAME='IA generativa';
 
@@ -949,8 +946,7 @@ function genAI(){
         'Content-Type':'application/json'
       },
       body:JSON.stringify({
-        inputs: prompt,
-        parameters:{ num_inference_steps:20, guidance_scale:7.5 }
+        inputs: prompt
       })
     })
     .then(function(res){
