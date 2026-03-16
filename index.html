@@ -202,18 +202,25 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 
   <div class="sec" id="aipanel" style="display:none">
     <div class="lbl">Generar imagen &#10024;</div>
+    <div id="hf-token-wrap">
+      <div style="font-size:8px;color:#7a6a4a;line-height:1.6;margin-bottom:5px">Token de Hugging Face:<br><span style="color:#4a3a22">huggingface.co → Settings → Access Tokens</span></div>
+      <div style="display:flex;gap:4px;margin-bottom:6px">
+        <input class="ai-prompt" id="hf-token" type="password" rows="1" placeholder="hf_xxxxxxxxxxxxxxxxxxxx" style="margin:0;resize:none;height:28px;padding:4px 7px">
+        <button class="ai-gen" id="hf-save" onclick="saveToken()" style="padding:4px 8px;white-space:nowrap">Guardar</button>
+      </div>
+    </div>
     <textarea class="ai-prompt" id="ai-prompt" rows="3" placeholder="Describe la imagen... ej: tinta china sobre papel, figura humana fragmentada, fondo oscuro"></textarea>
     <div class="ai-row">
       <select class="ai-sel" id="ai-size">
         <option value="512x512">512 × 512</option>
         <option value="768x512">768 × 512</option>
         <option value="512x768">512 × 768</option>
-        <option value="1024x768">1024 × 768</option>
+        <option value="1024x1024">1024 × 1024</option>
       </select>
       <button class="ai-gen" id="ai-btn" onclick="genAI()">Generar</button>
     </div>
     <img id="ai-preview" class="ai-preview" title="Clic para colocar en el lienzo">
-    <div class="ai-hint" id="ai-hint">Powered by Pollinations.ai &middot; gratis &middot; sin clave</div>
+    <div class="ai-hint" id="ai-hint">Hugging Face · FLUX.1-schnell · gratis</div>
   </div>
 
   <input type="file" id="img-upload" accept="image/*" onchange="loadImg(event)">
@@ -843,8 +850,10 @@ function delNote(i){
   audioNotes.splice(i,1);
   renderNotes();
 }
-// ── IA · POLLINATIONS.AI ─────────────────────────────────────
+// ── IA · HUGGING FACE ────────────────────────────────────────
 var aiOpen=false;
+var HF_TOKEN='';
+var HF_MODEL='black-forest-labs/FLUX.1-schnell';
 
 function toggleAI(){
   aiOpen=!aiOpen;
@@ -853,12 +862,46 @@ function toggleAI(){
   p.style.display=aiOpen?'block':'none';
   tb.classList.toggle('on',aiOpen);
   if(aiOpen){
-    setTimeout(function(){document.getElementById('ai-prompt').focus();},60);
-    stat('Describí la imagen y presioná Generar');
+    // Cargar token guardado
+    try{
+      var saved=localStorage.getItem('hf_token');
+      if(saved){
+        HF_TOKEN=saved;
+        document.getElementById('hf-token').value=saved;
+        document.getElementById('hf-token-wrap').style.display='none';
+        document.getElementById('ai-hint').textContent='Token activo \u2713 · FLUX.1-schnell';
+      }
+    }catch(e){}
+    setTimeout(function(){
+      var f=HF_TOKEN?document.getElementById('ai-prompt'):document.getElementById('hf-token');
+      f.focus();
+    },60);
+    stat('Panel IA \u2014 describí la imagen y presioná Generar');
   }
 }
 
+function saveToken(){
+  var val=document.getElementById('hf-token').value.trim();
+  if(!val||!val.startsWith('hf_')){
+    stat('\u274C El token debe empezar con hf_');
+    return;
+  }
+  HF_TOKEN=val;
+  try{localStorage.setItem('hf_token',val);}catch(e){}
+  document.getElementById('hf-token-wrap').style.display='none';
+  document.getElementById('ai-hint').textContent='Token activo \u2713 · FLUX.1-schnell';
+  stat('\u2728 Token guardado \u2014 ahora podés generar imágenes');
+  setTimeout(function(){document.getElementById('ai-prompt').focus();},60);
+}
+
 function genAI(){
+  if(!HF_TOKEN){
+    document.getElementById('hf-token-wrap').style.display='block';
+    document.getElementById('hf-token').focus();
+    stat('\u26A0\uFE0F Primero guardá tu token de Hugging Face');
+    return;
+  }
+
   var prompt=document.getElementById('ai-prompt').value.trim();
   if(!prompt){stat('Escribí un prompt primero');return;}
 
@@ -872,79 +915,78 @@ function genAI(){
 
   btn.disabled=true;
   btn.innerHTML='<span class="ai-spin">&#10024;</span> Generando...';
+  hint.textContent='Generando con FLUX.1-schnell...';
   prev.style.display='none';
   prev.onclick=null;
+  stat('\u2728 Generando imagen \u2014 puede tardar 15\u201330 seg...');
 
-  var seed=Math.floor(Math.random()*99999);
-  var models=['turbo','flux','dreamshaper','stable-diffusion'];
-  var modelIdx=0;
-
-  function tryModel(){
-    var m=models[modelIdx];
-    var url='https://image.pollinations.ai/prompt/'+
-      encodeURIComponent(prompt)+
-      '?width='+w+'&height='+h+'&seed='+(seed+modelIdx)+
-      '&nologo=true&model='+m;
-
-    hint.textContent='Generando con '+m+'...';
-    stat('\u2728 Generando con modelo '+m+' \u2014 esperá...');
-
-    // Timeout manual
-    var done=false;
-    var tid=setTimeout(function(){
-      if(done)return;
-      done=true;
-      nextModel('timeout');
-    }, 45000);
-
+  fetch('https://api-inference.huggingface.co/models/'+HF_MODEL,{
+    method:'POST',
+    headers:{
+      'Authorization':'Bearer '+HF_TOKEN,
+      'Content-Type':'application/json'
+    },
+    body:JSON.stringify({
+      inputs:prompt,
+      parameters:{width:w, height:h, num_inference_steps:4}
+    })
+  })
+  .then(function(res){
+    if(res.status===401){
+      HF_TOKEN='';
+      try{localStorage.removeItem('hf_token');}catch(e){}
+      document.getElementById('hf-token-wrap').style.display='block';
+      document.getElementById('hf-token').value='';
+      document.getElementById('ai-hint').textContent='Token inválido \u2014 ingresá uno nuevo';
+      throw new Error('Token inválido (401)');
+    }
+    if(res.status===503){
+      // Modelo cargando — reintentar en 20s
+      hint.textContent='Modelo iniciando \u2014 reintentando en 20 seg...';
+      stat('\u23F1 Modelo iniciando en HF \u2014 reintentando...');
+      btn.disabled=false;
+      btn.innerHTML='Reintentar';
+      throw new Error('modelo_cargando');
+    }
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    return res.blob();
+  })
+  .then(function(blob){
+    var url=URL.createObjectURL(blob);
     var img=new Image();
-
     img.onload=function(){
-      if(done)return;
-      done=true;
-      clearTimeout(tid);
-      // Éxito — mostramos preview
-      prev.src=img.src;
+      if(prev._blobUrl)URL.revokeObjectURL(prev._blobUrl);
+      prev._blobUrl=url;
+      prev.src=url;
       prev.style.display='block';
       hint.textContent='\u2193 Clic en la imagen para colocarla en el lienzo';
       btn.disabled=false;
       btn.innerHTML='Generar otra';
-      stat('\u2728 Imagen lista \u2014 clic para colocarla');
+      stat('\u2728 Imagen lista \u2014 clic para colocarla en el lienzo');
       prev.onclick=function(){
         placeAIImg(img);
         prev.onclick=null;
         hint.textContent='Colocada en el lienzo \u2713';
         setTimeout(function(){
-          hint.textContent='Powered by Pollinations.ai \u00B7 gratis \u00B7 sin clave';
+          hint.textContent='Token activo \u2713 · FLUX.1-schnell';
         },2500);
       };
     };
-
     img.onerror=function(){
-      if(done)return;
-      done=true;
-      clearTimeout(tid);
-      nextModel('error');
-    };
-
-    img.src=url;
-  }
-
-  function nextModel(reason){
-    modelIdx++;
-    if(modelIdx<models.length){
-      stat('\u26A0\uFE0F '+reason+' \u2014 probando '+models[modelIdx]+'...');
-      hint.textContent='Probando modelo alternativo...';
-      setTimeout(tryModel, 1500);
-    } else {
       btn.disabled=false;
       btn.innerHTML='Reintentar';
-      hint.textContent='Pollinations no responde \u2014 esperá y reintentá';
-      stat('\u274C Pollinations saturado \u2014 esperá unos minutos y reintentá');
-    }
-  }
-
-  tryModel();
+      hint.textContent='Error al cargar imagen \u2014 reintentá';
+      stat('\u274C Error al cargar la imagen generada');
+    };
+    img.src=url;
+  })
+  .catch(function(err){
+    if(err.message==='modelo_cargando')return;
+    btn.disabled=false;
+    btn.innerHTML='Reintentar';
+    hint.textContent='Error \u2014 reintentá';
+    stat('\u274C '+err.message);
+  });
 }
 
 function placeAIImg(im){
