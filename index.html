@@ -14,7 +14,7 @@ body{display:flex;height:100vh;overflow:hidden;background:#111;font-family:'JetB
 .sec{padding:10px 14px;border-bottom:1px solid #2e2618}
 .lbl{font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#9a8a6a;margin-bottom:8px}
 /* tools */
-.tg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.tg{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
 .tb{padding:8px 4px;border:1px solid #3a3020;background:rgba(255,255,255,0.04);border-radius:4px;cursor:pointer;color:#9a8a6a;font-size:13px;transition:all .12s;font-family:'JetBrains Mono',monospace}
 .tb:hover,.tb.on{border-color:#c8a96e;color:#c8a96e;background:rgba(200,169,110,.12)}
 /* bg */
@@ -63,6 +63,24 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 #st.v{opacity:1}
 /* tip */
 #tip{position:absolute;top:10px;left:10px;background:rgba(245,240,232,0.92);border:1px solid rgba(200,169,110,0.3);border-radius:4px;padding:6px 10px;font-size:8px;color:#7a6a52;line-height:1.8;pointer-events:none}
+/* audio */
+.rec-btn{width:100%;padding:7px;border-radius:4px;border:1px solid #3a3020;background:rgba(255,255,255,.03);color:#9a8a6a;font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:all .12s;display:flex;align-items:center;justify-content:center;gap:6px}
+.rec-btn:hover{border-color:#c8a96e;color:#c8a96e;background:rgba(200,169,110,.06)}
+.rec-btn.rec{border-color:#c04a2a;color:#c04a2a;background:rgba(192,74,42,.08);animation:rp .9s ease-in-out infinite}
+@keyframes rp{0%,100%{opacity:1}50%{opacity:.55}}
+.rec-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+.rec-timer{font-size:10px;color:#c8a96e;text-align:center;margin:5px 0 2px;height:14px;letter-spacing:.1em}
+.rec-meter{height:3px;background:rgba(200,169,110,.12);border-radius:2px;margin:4px 0 8px;overflow:hidden}
+.rec-bar{height:100%;background:#c8a96e;border-radius:2px;width:0%;transition:width .04s}
+.atray{display:flex;flex-direction:column;gap:4px;margin-top:2px}
+.anote{background:rgba(255,255,255,.025);border:1px solid #2e2618;border-radius:4px;padding:5px 7px}
+.anote-top{display:flex;align-items:center;justify-content:space-between}
+.anote-lbl{font-size:7px;color:#6a5a42;letter-spacing:.1em}
+.anote-btns{display:flex;gap:3px}
+.anb{width:19px;height:19px;border-radius:3px;border:1px solid #2e2618;background:transparent;cursor:pointer;color:#6a5a42;font-size:10px;display:flex;align-items:center;justify-content:center;transition:all .1s;padding:0;line-height:1}
+.anb:hover{border-color:#c8a96e;color:#c8a96e}
+.anb.pl{color:#c04a2a;border-color:#c04a2a}
+.no-notes{font-size:8px;color:#3a2a1a;text-align:center;padding:8px 0}
 </style>
 </head>
 <body>
@@ -76,6 +94,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
       <button class="tb"    id="t-erase" onclick="ST('erase')" title="E">&#9633;</button>
       <button class="tb"    id="t-text"  onclick="ST('text')"  title="T">T</button>
       <button class="tb"    id="t-img"   onclick="document.getElementById('img-upload').click()">&#128444;</button>
+      <button class="tb"    id="t-mic"   onclick="toggleMic()" title="M">&#127897;</button>
     </div>
   </div>
 
@@ -136,6 +155,19 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
     <button class="ab d" onclick="removeSelImg()">&#10005; Eliminar imagen</button>
   </div>
 
+  <div class="sec" id="apanel" style="display:none">
+    <div class="lbl">Dictado de voz</div>
+    <button class="rec-btn" id="rec-btn" onclick="toggleRec()">
+      <span class="rec-dot"></span>
+      <span id="rec-lbl">Grabar nota</span>
+    </button>
+    <div class="rec-timer" id="rec-timer"></div>
+    <div class="rec-meter"><div class="rec-bar" id="rec-bar"></div></div>
+    <div class="atray" id="atray">
+      <div class="no-notes" id="no-notes">Sin notas de audio</div>
+    </div>
+  </div>
+
   <div class="sec">
     <div class="lbl">Acciones</div>
     <button class="ab" onclick="doUndo()">&#8617; Deshacer</button>
@@ -156,7 +188,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
     </div>
   </div>
   <div id="st"></div>
-  <div id="tip">B pincel &nbsp; E borrar &nbsp; T texto &nbsp; Z deshacer &nbsp; [ ] tamano &nbsp; rueda = tamano</div>
+  <div id="tip">B pincel &nbsp; E borrar &nbsp; T texto &nbsp; M audio &nbsp; Z deshacer &nbsp; [ ] tamano &nbsp; rueda = tamano</div>
 </div>
 
 <script>
@@ -364,6 +396,7 @@ document.addEventListener('keydown',function(e){
   if(e.key==='e'||e.key==='E')ST('erase');
   if(e.key==='t'||e.key==='T')ST('text');
   if(e.key==='s'||e.key==='S')doSave();
+  if(e.key==='m'||e.key==='M')toggleMic();
   if(e.key==='['){bSz=Math.max(1,bSz-2);document.getElementById('sl-s').value=bSz;document.getElementById('v-s').textContent=Math.round(bSz);}
   if(e.key===']'){bSz=Math.min(80,bSz+2);document.getElementById('sl-s').value=bSz;document.getElementById('v-s').textContent=Math.round(bSz);}
 });
@@ -555,6 +588,164 @@ function stat(msg){
   clearTimeout(_st);
   _st=setTimeout(function(){s.classList.remove('v');},2000);
 }
+
+// ── AUDIO DICTATION ─────────────────────────────────────────
+var micOpen=false, isRec=false;
+var mediaRec=null, recStream=null;
+var recChunks=[], recSecs=0;
+var recTimer=null, meterRaf=null;
+var recACtx=null, recAnalyser=null;
+var audioNotes=[];
+
+function toggleMic(){
+  micOpen=!micOpen;
+  var ap=document.getElementById('apanel');
+  var tb=document.getElementById('t-mic');
+  if(micOpen){
+    ap.style.display='block';
+    tb.classList.add('on');
+    stat('Panel de audio — M para abrir/cerrar');
+  } else {
+    if(isRec)stopRec();
+    ap.style.display='none';
+    tb.classList.remove('on');
+  }
+}
+
+function toggleRec(){
+  if(isRec)stopRec(); else startRec();
+}
+
+function startRec(){
+  navigator.mediaDevices.getUserMedia({audio:true,video:false})
+  .then(function(stream){
+    recStream=stream; recChunks=[]; isRec=true;
+
+    // Level meter
+    recACtx=new(window.AudioContext||window.webkitAudioContext)();
+    recAnalyser=recACtx.createAnalyser();
+    recAnalyser.fftSize=128;
+    recACtx.createMediaStreamSource(stream).connect(recAnalyser);
+    var fdata=new Uint8Array(recAnalyser.frequencyBinCount);
+    (function meter(){
+      if(!isRec)return;
+      recAnalyser.getByteFrequencyData(fdata);
+      var avg=fdata.reduce(function(a,b){return a+b;},0)/fdata.length;
+      document.getElementById('rec-bar').style.width=Math.min(100,avg*3)+'%';
+      meterRaf=requestAnimationFrame(meter);
+    })();
+
+    // MediaRecorder
+    mediaRec=new MediaRecorder(stream);
+    mediaRec.ondataavailable=function(e){if(e.data.size>0)recChunks.push(e.data);};
+    mediaRec.onstop=function(){
+      var blob=new Blob(recChunks,{type:'audio/webm'});
+      addNote(blob);
+    };
+    mediaRec.start();
+
+    // Timer
+    recSecs=0; tickTimer();
+    recTimer=setInterval(tickTimer,1000);
+
+    // UI
+    document.getElementById('rec-btn').classList.add('rec');
+    document.getElementById('rec-lbl').textContent='Detener';
+    stat('Grabando...');
+  })
+  .catch(function(){stat('Sin acceso al micrófono');});
+}
+
+function stopRec(){
+  isRec=false;
+  if(mediaRec&&mediaRec.state!=='inactive')mediaRec.stop();
+  if(recStream)recStream.getTracks().forEach(function(t){t.stop();});
+  if(recTimer)clearInterval(recTimer);
+  if(meterRaf)cancelAnimationFrame(meterRaf);
+  if(recACtx)recACtx.close().catch(function(){});
+  document.getElementById('rec-bar').style.width='0%';
+  document.getElementById('rec-timer').textContent='';
+  document.getElementById('rec-btn').classList.remove('rec');
+  document.getElementById('rec-lbl').textContent='Grabar nota';
+  stat('Nota guardada');
+}
+
+function tickTimer(){
+  var m=Math.floor(recSecs/60), s=recSecs%60;
+  document.getElementById('rec-timer').textContent=
+    (m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+  recSecs++;
+}
+
+function addNote(blob){
+  var now=new Date();
+  var ts=(now.getHours()<10?'0':'')+now.getHours()+':'+(now.getMinutes()<10?'0':'')+now.getMinutes();
+  audioNotes.push({blob:blob,url:URL.createObjectURL(blob),ts:ts});
+  renderNotes();
+}
+
+function renderNotes(){
+  var tray=document.getElementById('atray');
+  tray.querySelectorAll('.anote').forEach(function(el){el.remove();});
+  var nn=document.getElementById('no-notes');
+  if(!audioNotes.length){nn.style.display='block';return;}
+  nn.style.display='none';
+  audioNotes.forEach(function(note,i){
+    var d=document.createElement('div');
+    d.className='anote';
+    d.id='anote-'+i;
+    d.innerHTML=
+      '<div class="anote-top">'+
+        '<span class="anote-lbl">Nota '+(i+1)+' &middot; '+note.ts+'</span>'+
+        '<div class="anote-btns">'+
+          '<button class="anb" id="pb-'+i+'" onclick="playNote('+i+')" title="Reproducir">&#9654;</button>'+
+          '<button class="anb" onclick="dlNote('+i+')" title="Descargar">&#8595;</button>'+
+          '<button class="anb" onclick="delNote('+i+')" title="Eliminar">&#10005;</button>'+
+        '</div>'+
+      '</div>'+
+      '<audio id="aud-'+i+'" src="'+note.url+'" style="display:none"></audio>';
+    tray.appendChild(d);
+  });
+}
+
+function playNote(i){
+  var aud=document.getElementById('aud-'+i);
+  var btn=document.getElementById('pb-'+i);
+  if(!aud)return;
+  // pause all others
+  audioNotes.forEach(function(_,j){
+    if(j===i)return;
+    var a=document.getElementById('aud-'+j);
+    var b=document.getElementById('pb-'+j);
+    if(a&&!a.paused){a.pause();a.currentTime=0;}
+    if(b){b.innerHTML='&#9654;';b.classList.remove('pl');}
+  });
+  if(aud.paused){
+    aud.play();
+    btn.innerHTML='&#9646;&#9646;';
+    btn.classList.add('pl');
+    aud.onended=function(){btn.innerHTML='&#9654;';btn.classList.remove('pl');};
+  } else {
+    aud.pause();
+    btn.innerHTML='&#9654;';
+    btn.classList.remove('pl');
+  }
+}
+
+function dlNote(i){
+  var n=audioNotes[i]; if(!n)return;
+  var a=document.createElement('a');
+  a.href=n.url;
+  a.download='bitacora_audio_'+(i+1<10?'0':'')+(i+1)+'.webm';
+  a.click();
+}
+
+function delNote(i){
+  URL.revokeObjectURL(audioNotes[i].url);
+  audioNotes.splice(i,1);
+  renderNotes();
+}
+// ────────────────────────────────────────────────────────────
 </script>
 </body>
 </html>
