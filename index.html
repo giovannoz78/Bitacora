@@ -14,7 +14,7 @@ body{display:flex;height:100vh;overflow:hidden;background:#111;font-family:'JetB
 .sec{padding:10px 14px;border-bottom:1px solid #2e2618}
 .lbl{font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#9a8a6a;margin-bottom:8px}
 /* tools */
-.tg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.tg{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
 .tb{padding:8px 4px;border:1px solid #3a3020;background:rgba(255,255,255,0.04);border-radius:4px;cursor:pointer;color:#9a8a6a;font-size:13px;transition:all .12s;font-family:'JetBrains Mono',monospace}
 .tb:hover,.tb.on{border-color:#c8a96e;color:#c8a96e;background:rgba(200,169,110,.12)}
 /* bg */
@@ -86,21 +86,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 .atx-copy{width:100%;margin-top:4px;padding:3px;border-radius:3px;border:1px solid #2e2618;background:transparent;color:#6a5a42;font-family:'JetBrains Mono',monospace;font-size:7px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .1s}
 .atx-copy:hover{border-color:#c8a96e;color:#c8a96e}
 .stt-badge{font-size:7px;color:#4a3a22;letter-spacing:.1em;text-align:right;margin-bottom:3px}
-/* ai gen */
-.ai-prompt{width:100%;padding:5px 7px;background:rgba(255,255,255,.04);border:1px solid #3a3020;border-radius:4px;color:#e8dcc8;font-family:'JetBrains Mono',monospace;font-size:9px;outline:none;resize:none;line-height:1.5;margin-bottom:6px}
-.ai-prompt::placeholder{color:#3a2a1a}
-.ai-prompt:focus{border-color:rgba(200,169,110,.4)}
-.ai-row{display:flex;gap:4px;margin-bottom:6px}
-.ai-sel{flex:1;padding:4px 5px;background:rgba(255,255,255,.04);border:1px solid #3a3020;border-radius:3px;color:#9a8a6a;font-family:'JetBrains Mono',monospace;font-size:8px;outline:none;cursor:pointer}
-.ai-sel option{background:#1a1510}
-.ai-gen{padding:6px 10px;border-radius:4px;border:1px solid #c8a96e;background:rgba(200,169,110,.08);color:#c8a96e;font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .12s;white-space:nowrap}
-.ai-gen:hover{background:rgba(200,169,110,.18)}
-.ai-gen:disabled{opacity:.35;cursor:not-allowed}
-.ai-preview{width:100%;border-radius:4px;border:1px solid #2e2618;display:none;margin-bottom:6px;cursor:pointer}
-.ai-preview:hover{border-color:#c8a96e}
-.ai-hint{font-size:7px;color:#3a2a1a;line-height:1.6;text-align:center}
-.ai-spin{display:inline-block;animation:spin .7s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -115,7 +100,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
       <button class="tb"    id="t-text"  onclick="ST('text')"  title="T">T</button>
       <button class="tb"    id="t-img"   onclick="document.getElementById('img-upload').click()">&#128444;</button>
       <button class="tb"    id="t-mic"   onclick="toggleMic()" title="M">&#127897;</button>
-      <button class="tb"    id="t-ai"    onclick="toggleAI()"  title="I">&#10024;</button>
     </div>
   </div>
 
@@ -200,30 +184,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
     <button class="ab d" onclick="doClear()">&#10005; Limpiar todo</button>
   </div>
 
-  <div class="sec" id="aipanel" style="display:none">
-    <div class="lbl">Generar imagen &#10024;</div>
-    <div id="hf-token-wrap">
-      <div style="font-size:8px;color:#7a6a4a;line-height:1.6;margin-bottom:5px">Token de Hugging Face:<br><span style="color:#4a3a22">huggingface.co → Settings → Access Tokens</span></div>
-      <div style="display:flex;gap:4px;margin-bottom:6px">
-        <input class="ai-prompt" id="hf-token" type="password" rows="1" placeholder="hf_xxxxxxxxxxxxxxxxxxxx" style="margin:0;resize:none;height:28px;padding:4px 7px">
-        <button class="ai-gen" id="hf-save" onclick="saveToken()" style="padding:4px 8px;white-space:nowrap">Guardar</button>
-      </div>
-    </div>
-    <div id="hf-token-active" style="display:none;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between">
-      <span style="font-size:8px;color:#5a7a4a;letter-spacing:.1em">&#10003; TOKEN ACTIVO</span>
-      <button onclick="clearToken()" style="font-size:7px;padding:2px 6px;border-radius:3px;border:1px solid #3a3020;background:transparent;color:#6a5a42;font-family:'JetBrains Mono',monospace;letter-spacing:.1em;cursor:pointer">Cambiar</button>
-    </div>
-    <textarea class="ai-prompt" id="ai-prompt" rows="3" placeholder="Describe la imagen... ej: tinta china sobre papel, figura humana fragmentada, fondo oscuro"></textarea>
-    <div class="ai-row">
-      <select class="ai-sel" id="ai-size">
-        <option value="512x512">512 × 512</option>
-      </select>
-      <button class="ai-gen" id="ai-btn" onclick="genAI()">Generar</button>
-    </div>
-    <img id="ai-preview" class="ai-preview" title="Clic para colocar en el lienzo">
-    <div class="ai-hint" id="ai-hint">Hugging Face · Stable Diffusion 1.5 · gratis</div>
-  </div>
-
   <input type="file" id="img-upload" accept="image/*" onchange="loadImg(event)">
 </div>
 
@@ -237,7 +197,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
     </div>
   </div>
   <div id="st"></div>
-  <div id="tip">B pincel &nbsp; E borrar &nbsp; T texto &nbsp; M audio &nbsp; I ia &nbsp; Z deshacer &nbsp; [ ] tamano &nbsp; rueda = tamano</div>
+  <div id="tip">B pincel &nbsp; E borrar &nbsp; T texto &nbsp; M audio &nbsp; Z deshacer &nbsp; [ ] tamano &nbsp; rueda = tamano</div>
 </div>
 
 <script>
@@ -446,7 +406,6 @@ document.addEventListener('keydown',function(e){
   if(e.key==='t'||e.key==='T')ST('text');
   if(e.key==='s'||e.key==='S')doSave();
   if(e.key==='m'||e.key==='M')toggleMic();
-  if(e.key==='i'||e.key==='I')toggleAI();
   if(e.key==='['){bSz=Math.max(1,bSz-2);document.getElementById('sl-s').value=bSz;document.getElementById('v-s').textContent=Math.round(bSz);}
   if(e.key===']'){bSz=Math.min(80,bSz+2);document.getElementById('sl-s').value=bSz;document.getElementById('v-s').textContent=Math.round(bSz);}
 });
@@ -851,201 +810,7 @@ function delNote(i){
   audioNotes.splice(i,1);
   renderNotes();
 }
-// ── IA · HUGGING FACE ────────────────────────────────────────
-var aiOpen=false;
-var HF_TOKEN='';
-var HF_MODELS=[
-  'stabilityai/stable-diffusion-2-1-base'
-];
-var HF_MODEL_NAME='IA generativa';
-
-function toggleAI(){
-  aiOpen=!aiOpen;
-  var p=document.getElementById('aipanel');
-  var tb=document.getElementById('t-ai');
-  p.style.display=aiOpen?'block':'none';
-  tb.classList.toggle('on',aiOpen);
-  if(aiOpen){
-    try{
-      var saved=localStorage.getItem('hf_token');
-      if(saved){ HF_TOKEN=saved; showTokenActive(); }
-      else { showTokenForm(); }
-    }catch(e){ showTokenForm(); }
-    setTimeout(function(){
-      var f=HF_TOKEN?document.getElementById('ai-prompt'):document.getElementById('hf-token');
-      f.focus();
-    },60);
-    stat('Panel IA \u2014 describí la imagen y presioná Generar');
-  }
-}
-
-function showTokenForm(){
-  document.getElementById('hf-token-wrap').style.display='block';
-  document.getElementById('hf-token-active').style.display='none';
-}
-
-function showTokenActive(){
-  document.getElementById('hf-token-wrap').style.display='none';
-  document.getElementById('hf-token-active').style.display='flex';
-  document.getElementById('ai-hint').textContent='Token activo \u2713 \u00B7 Stable Diffusion 1.5';
-}
-
-function saveToken(){
-  var val=document.getElementById('hf-token').value.trim();
-  if(!val||!val.startsWith('hf_')){
-    stat('\u274C El token debe empezar con hf_');
-    return;
-  }
-  HF_TOKEN=val;
-  try{localStorage.setItem('hf_token',val);}catch(e){}
-  showTokenActive();
-  stat('\u2728 Token guardado \u2014 ahora podés generar imágenes');
-  setTimeout(function(){document.getElementById('ai-prompt').focus();},60);
-}
-
-function clearToken(){
-  HF_TOKEN='';
-  try{localStorage.removeItem('hf_token');}catch(e){}
-  document.getElementById('hf-token').value='';
-  showTokenForm();
-  stat('Token eliminado \u2014 pegá el nuevo y guardá');
-}
-
-function genAI(){
-  if(!HF_TOKEN){
-    showTokenForm();
-    document.getElementById('hf-token').focus();
-    stat('\u26A0\uFE0F Primero guardá tu token de Hugging Face');
-    return;
-  }
-
-  var prompt=document.getElementById('ai-prompt').value.trim();
-  if(!prompt){stat('Escribí un prompt primero');return;}
-
-  var btn=document.getElementById('ai-btn');
-  var hint=document.getElementById('ai-hint');
-  var prev=document.getElementById('ai-preview');
-
-  btn.disabled=true;
-  prev.style.display='none';
-  prev.onclick=null;
-
-  var modelIdx=0;
-
-  function tryModel(){
-    var model=HF_MODELS[modelIdx];
-    var shortName=model.split('/')[1];
-    btn.innerHTML='<span class="ai-spin">&#10024;</span> Generando...';
-    hint.textContent='Probando '+shortName+'...';
-    stat('\u2728 Generando con '+shortName+' \u2014 esperá...');
-
-    fetch('https://api-inference.huggingface.co/models/'+model,{
-      method:'POST',
-      headers:{
-        'Authorization':'Bearer '+HF_TOKEN,
-        'Content-Type':'application/json'
-      },
-      body:JSON.stringify({
-        inputs: prompt
-      })
-    })
-    .then(function(res){
-      if(res.status===401){
-        HF_TOKEN='';
-        try{localStorage.removeItem('hf_token');}catch(e){}
-        showTokenForm();
-        document.getElementById('hf-token').value='';
-        btn.disabled=false; btn.innerHTML='Reintentar';
-        hint.textContent='Token inv\u00e1lido \u2014 ingres\u00e1 uno nuevo';
-        stat('\u274C Token inv\u00e1lido \u2014 generá uno nuevo en huggingface.co/settings/tokens');
-        throw new Error('skip');
-      }
-      // 403/404/500 → probar siguiente modelo
-      if(res.status===403||res.status===404||res.status===500){
-        throw new Error('next');
-      }
-      if(res.status===503){
-        return res.json().then(function(j){
-          var wait=Math.ceil(j.estimated_time||20);
-          hint.textContent=shortName+' iniciando \u2014 reintentando en '+wait+'s...';
-          stat('\u23F1 '+shortName+' fr\u00edo \u2014 reintentando en '+wait+'s');
-          setTimeout(tryModel, wait*1000);
-          throw new Error('skip');
-        }).catch(function(e){
-          if(e.message==='skip')throw e;
-          setTimeout(tryModel, 20000);
-          throw new Error('skip');
-        });
-      }
-      if(!res.ok) throw new Error('next');
-      return res.blob();
-    })
-    .then(function(blob){
-      if(!blob)return;
-      var url=URL.createObjectURL(blob);
-      var img=new Image();
-      img.onload=function(){
-        if(prev._blobUrl)URL.revokeObjectURL(prev._blobUrl);
-        prev._blobUrl=url;
-        prev.src=url;
-        prev.style.display='block';
-        hint.textContent='\u2193 Clic en la imagen para colocarla en el lienzo';
-        btn.disabled=false;
-        btn.innerHTML='Generar otra';
-        stat('\u2728 Imagen lista con '+shortName+' \u2014 clic para colocarla');
-        prev.onclick=function(){
-          placeAIImg(img);
-          prev.onclick=null;
-          hint.textContent='Colocada en el lienzo \u2713';
-          setTimeout(function(){
-            hint.textContent='Token activo \u2713 \u00B7 '+shortName;
-          },2500);
-        };
-      };
-      img.onerror=function(){
-        btn.disabled=false; btn.innerHTML='Reintentar';
-        hint.textContent='Error al mostrar la imagen';
-        stat('\u274C Error al cargar la imagen generada');
-      };
-      img.src=url;
-    })
-    .catch(function(err){
-      if(err.message==='skip') return;
-      if(err.message==='next'){
-        modelIdx++;
-        if(modelIdx<HF_MODELS.length){
-          hint.textContent='Probando modelo alternativo...';
-          stat('\u26A0\uFE0F '+shortName+' no disponible \u2014 probando siguiente...');
-          setTimeout(tryModel, 1000);
-        } else {
-          btn.disabled=false; btn.innerHTML='Reintentar';
-          hint.textContent='Ning\u00fan modelo disponible ahora \u2014 reintentá';
-          stat('\u274C Todos los modelos fallaron \u2014 reintentá en unos minutos');
-        }
-        return;
-      }
-      // Error de red
-      btn.disabled=false; btn.innerHTML='Reintentar';
-      hint.textContent='Error de conexi\u00f3n';
-      stat('\u274C Error de red: '+err.message);
-    });
-  }
-
-  tryModel();
-}
-
-function placeAIImg(im){
-  push();
-  var mw=Math.min(500,cvs.width*0.6);
-  var ratio=im.naturalHeight/im.naturalWidth||1;
-  var ix=cvs.width/2-mw/2;
-  var iy=cvs.height/2-(mw*ratio)/2;
-  var obj={img:im,x:ix,y:iy,w:mw,h:mw*ratio,bw:mw,bh:mw*ratio,op:1,sc:100,ox:0,oy:0};
-  imgs.push(obj); selI=imgs.length-1;
-  redraw(); showImgPanel();
-  stat('Imagen IA colocada \u2014 ajust\u00e1 transparencia y escala');
-}
-// ─────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────
 </script>
 </body>
 </html>
