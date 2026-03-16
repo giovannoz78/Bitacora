@@ -872,39 +872,54 @@ function genAI(){
 
   btn.disabled=true;
   btn.innerHTML='<span class="ai-spin">&#10024;</span> Generando...';
-  hint.textContent='Puede tardar 20\u201340 seg\u2026';
+  hint.textContent='Iniciando...';
   prev.style.display='none';
   prev.onclick=null;
 
   var seed=Math.floor(Math.random()*99999);
-  // Modelos en orden de prioridad
   var models=['turbo','flux','flux-realism'];
   var modelIdx=0;
+  var attempt=0;
 
   function tryFetch(){
     var currentModel=models[modelIdx];
+    attempt++;
     var tryUrl='https://image.pollinations.ai/prompt/'+
       encodeURIComponent(prompt)+
       '?width='+w+'&height='+h+'&seed='+seed+'&nologo=true&model='+currentModel;
 
-    hint.textContent='Generando con modelo '+currentModel+'...';
+    var msg='['+currentModel+'] intento '+attempt+'...';
+    hint.textContent=msg;
+    stat('\u2728 '+msg);
 
     var controller=new AbortController();
     var timeoutId=setTimeout(function(){controller.abort();},90000);
 
     fetch(tryUrl,{signal:controller.signal})
     .then(function(res){
-      if(res.status===429){
-        clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
+      // 429 = rate limit  |  500/503 = server error → probar otro modelo
+      if(res.status===429||res.status===500||res.status===503){
+        var reason=res.status===429?'límite de requests':'error del servidor ('+res.status+')';
         modelIdx++;
         if(modelIdx<models.length){
-          hint.textContent='Límite alcanzado, probando modelo alternativo...';
-          setTimeout(tryFetch, 2000);
+          var next=models[modelIdx];
+          hint.textContent='Cambiando a modelo '+next+'...';
+          stat('\u26A0\uFE0F '+reason+' \u2014 probando '+next);
+          setTimeout(tryFetch, 2500);
         } else {
-          btn.disabled=false;
-          btn.innerHTML='Reintentar en 1 min';
-          hint.textContent='Servicio saturado \u2014 esperá 1 minuto y reintentá';
-          stat('Pollinations saturado (429) \u2014 reintentá en un momento');
+          // Reintentar el primero con delay
+          modelIdx=0;
+          if(attempt<6){
+            hint.textContent='Pollinations saturado \u2014 reintentando en 8 seg...';
+            stat('\u23F1 Pollinations saturado \u2014 reintentando...');
+            setTimeout(tryFetch, 8000);
+          } else {
+            btn.disabled=false;
+            btn.innerHTML='Reintentar';
+            hint.textContent='Servicio saturado \u2014 esperá un rato y reintentá';
+            stat('\u274C Pollinations no responde \u2014 esperá y reintentá');
+          }
         }
         return null;
       }
@@ -913,7 +928,6 @@ function genAI(){
     })
     .then(function(blob){
       if(!blob)return;
-      clearTimeout(timeoutId);
       var blobUrl=URL.createObjectURL(blob);
       var img=new Image();
       img.onload=function(){
@@ -921,10 +935,10 @@ function genAI(){
         prev._blobUrl=blobUrl;
         prev.src=blobUrl;
         prev.style.display='block';
-        hint.textContent='Clic en la imagen para colocarla en el lienzo';
+        hint.textContent='Clic en la imagen \u2193 para colocarla en el lienzo';
         btn.disabled=false;
         btn.innerHTML='Generar otra';
-        stat('Imagen generada \u2014 clic para colocarla');
+        stat('\u2728 Imagen lista \u2014 clic para colocarla en el lienzo');
         prev.onclick=function(){
           placeAIImg(img);
           prev.onclick=null;
@@ -938,14 +952,23 @@ function genAI(){
     })
     .catch(function(err){
       clearTimeout(timeoutId);
-      btn.disabled=false;
-      btn.innerHTML='Reintentar';
       if(err.name==='AbortError'){
-        hint.textContent='Tardó demasiado \u2014 reintentá';
-        stat('Timeout \u2014 reintentá');
+        modelIdx++;
+        if(modelIdx<models.length){
+          hint.textContent='Timeout \u2014 probando modelo '+models[modelIdx]+'...';
+          stat('\u23F1 Timeout \u2014 probando '+models[modelIdx]);
+          setTimeout(tryFetch, 1000);
+        } else {
+          btn.disabled=false;
+          btn.innerHTML='Reintentar';
+          hint.textContent='Sin respuesta \u2014 reintentá';
+          stat('\u274C Timeout en todos los modelos');
+        }
       } else {
-        hint.textContent='Error de conexi\u00f3n \u2014 reintentá';
-        stat('Error: '+err.message);
+        btn.disabled=false;
+        btn.innerHTML='Reintentar';
+        hint.textContent='Error: '+err.message;
+        stat('\u274C '+err.message);
       }
     });
   }
