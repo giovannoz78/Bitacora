@@ -748,7 +748,15 @@ function placeAIImg(im){
   var obj={img:im,x:ix,y:iy,w:mw,h:mw*ratio,bw:mw,bh:mw*ratio,op:1,sc:100,ox:0,oy:0};
   imgs.push(obj);selI=imgs.length-1;
   redraw();showImgPanel();
-  stat('Imagen IA colocada \u2014 ajust\u00e1 transparencia y escala');
+  // Cerrar panel IA y hacer scroll al panel de imagen
+  var aip=document.getElementById('aipanel');
+  if(aip)aip.style.display='none';
+  var tb=document.getElementById('t-ai');
+  if(tb)tb.classList.remove('on');
+  aiOpen=false;
+  var ip=document.getElementById('ipanel');
+  if(ip)setTimeout(function(){ip.scrollIntoView({behavior:'smooth',block:'nearest'});},80);
+  stat('Imagen IA colocada \u2014 ajust\u00e1 transparencia y escala \u2191');
 }
 // ─────────────────────────────────────────────────────────────
 </script>
